@@ -26,11 +26,12 @@ export default function LoginPage() {
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
-        .single()
+        .maybeSingle()
 
       if (profileError) throw profileError
 
-      if (profile?.role === 'municipal_official') {
+      // Redirect any official (non-student) role to the admin dashboard
+      if (profile?.role && profile.role !== 'student') {
         router.push('/dashboard')
       } else {
         router.push('/map')

@@ -11,7 +11,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
-  const [role, setRole] = useState<'citizen' | 'municipal_official'>('citizen')
+  const [role, setRole] = useState<'student' | 'ground_staff'>('student')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -174,8 +174,8 @@ export default function SignupPage() {
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               {[
-                { value: 'citizen', label: 'Student / Citizen', icon: GraduationCap },
-                { value: 'municipal_official', label: 'Admin / Official', icon: Shield },
+                { value: 'student', label: 'Student / Citizen', icon: GraduationCap },
+                { value: 'ground_staff', label: 'Admin / Official', icon: Shield },
               ].map(({ value, label, icon: Icon }) => {
                 const active = role === value
                 return (

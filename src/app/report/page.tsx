@@ -5,14 +5,34 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { MapPin, Upload, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react'
 
-type Category = 'road' | 'lighting' | 'sanitation' | 'water' | 'other'
+type Category = 'electrical' | 'cleaning' | 'water_leakage' | 'furniture' | 'lab_equipment' | 'wiring_projector' | 'safety' | 'other'
 
-const CATEGORIES: { value: Category; label: string; emoji: string; color: string }[] = [
-  { value: 'road', label: 'Road / Infrastructure', emoji: '🛣️', color: '#F59E0B' },
-  { value: 'lighting', label: 'Lighting', emoji: '💡', color: '#00E5FF' },
-  { value: 'sanitation', label: 'Sanitation', emoji: '🧹', color: '#10B981' },
-  { value: 'water', label: 'Water / Plumbing', emoji: '💧', color: '#3B82F6' },
-  { value: 'other', label: 'Other', emoji: '📋', color: '#8B5CF6' },
+const CATEGORIES: { value: Category; label: string; emoji: string; color: string; level: number }[] = [
+  { value: 'cleaning', label: 'Cleaning / Hygiene', emoji: '🧹', color: '#10B981', level: 1 },
+  { value: 'electrical', label: 'Electrical (Fan/Light)', emoji: '💡', color: '#00E5FF', level: 1 },
+  { value: 'water_leakage', label: 'Water Leakage', emoji: '💧', color: '#3B82F6', level: 1 },
+  { value: 'furniture', label: 'Furniture Repair', emoji: '🪑', color: '#F59E0B', level: 1 },
+  { value: 'lab_equipment', label: 'Lab PC / Equipment', emoji: '💻', color: '#EF4444', level: 2 },
+  { value: 'wiring_projector', label: 'Wiring / Projector', emoji: '🔌', color: '#8B5CF6', level: 2 },
+  { value: 'safety', label: 'Safety / Hazards', emoji: '🛡️', color: '#F87171', level: 3 },
+  { value: 'other', label: 'Other Facilities', emoji: '📋', color: '#A3E635', level: 1 },
+]
+
+const GEC_BLOCKS = [
+  'IT Department Block',
+  'Computer Science Dept Block',
+  'Mechanical Department Block',
+  'Civil Department Block',
+  'ETC Department Block',
+  'Electrical Department Block',
+  'Mining Department Block',
+  'Admin Main Block',
+  'Hostel Block A',
+  'Hostel Block B',
+  'Hostel Block C',
+  'Campus Canteen',
+  'Central Library',
+  'General Workshop',
 ]
 
 const inputStyle: React.CSSProperties = {
@@ -31,7 +51,8 @@ export default function ReportPage() {
   const [locationLoading, setLocationLoading] = useState(false)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [category, setCategory] = useState<Category>('road')
+  const [category, setCategory] = useState<Category>('electrical')
+  const [locationBlock, setLocationBlock] = useState(GEC_BLOCKS[0])
   const [latitude, setLatitude] = useState<number | null>(null)
   const [longitude, setLongitude] = useState<number | null>(null)
   const [address, setAddress] = useState('')
@@ -90,8 +111,22 @@ export default function ReportPage() {
         const { data: { publicUrl } } = supabase.storage.from('issue-images').getPublicUrl(fileName)
         beforeImageUrl = publicUrl
       }
+
+      // Map the selected category to its base escalation level (Level 1, 2, or 3)
+      const categoryConfig = CATEGORIES.find(c => c.value === category)
+      const escalationLevel = categoryConfig ? categoryConfig.level : 1
+
       const { error } = await supabase.from('issues').insert({
-        title, description, category, latitude, longitude, address, before_image_url: beforeImageUrl, reported_by: user.id
+        title, 
+        description, 
+        category, 
+        location_block: locationBlock,
+        escalation_level: escalationLevel,
+        latitude, 
+        longitude, 
+        address, 
+        before_image_url: beforeImageUrl, 
+        reported_by: user.id
       })
       if (error) throw error
       setSuccess(true)
@@ -143,7 +178,7 @@ export default function ReportPage() {
             Submit a Campus Issue
           </h1>
           <p style={{ color: '#6B7280', fontSize: '0.875rem', margin: 0 }}>
-            Help campus administration identify and resolve problems faster
+            Help GEC campus administration identify, assign, and resolve problems faster
           </p>
         </div>
 
@@ -161,11 +196,23 @@ export default function ReportPage() {
                 </label>
                 <input
                   type="text" required value={title} onChange={e => setTitle(e.target.value)}
-                  placeholder="e.g. Broken streetlight near hostel block C"
+                  placeholder="e.g. Fan speed regulator broken"
                   style={inputStyle}
                   onFocus={e => e.target.style.borderColor = '#00E5FF'}
                   onBlur={e => e.target.style.borderColor = '#2A2D3D'}
                 />
+              </div>
+
+              {/* Location/Block Dropdown */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
+                  CAMPUS LOCATION / BLOCK *
+                </label>
+                <select value={locationBlock} onChange={e => setLocationBlock(e.target.value)} style={inputStyle}>
+                  {GEC_BLOCKS.map(block => (
+                    <option key={block} value={block}>{block}</option>
+                  ))}
+                </select>
               </div>
 
               {/* Category */}
@@ -174,7 +221,7 @@ export default function ReportPage() {
                   CATEGORY *
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
-                  {CATEGORIES.map(({ value, label, emoji, color }) => (
+                  {CATEGORIES.map(({ value, label, emoji, color, level }) => (
                     <button key={value} type="button" onClick={() => setCategory(value)} style={{
                       padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
                       background: category === value ? `${color}15` : '#1E1F2E',
@@ -185,7 +232,10 @@ export default function ReportPage() {
                       transition: 'all 0.2s ease', textAlign: 'left',
                     }}>
                       <span style={{ fontSize: '1.1rem' }}>{emoji}</span>
-                      {label}
+                      <span style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+                        <span>{label}</span>
+                      </span>
+                      <span style={{ fontSize: '0.65rem', opacity: 0.8, color: '#9CA3AF' }}>routes to Level {level}</span>
                     </button>
                   ))}
                 </div>
@@ -198,7 +248,7 @@ export default function ReportPage() {
                 </label>
                 <textarea
                   required rows={4} value={description} onChange={e => setDescription(e.target.value)}
-                  placeholder="Describe the issue in detail. What's the problem and where exactly is it located?"
+                  placeholder="Describe the issue in detail. Please list the classroom number, laboratory name, or specific equipment details."
                   style={{ ...inputStyle, resize: 'vertical', padding: '12px 14px' }}
                   onFocus={e => e.target.style.borderColor = '#00E5FF'}
                   onBlur={e => e.target.style.borderColor = '#2A2D3D'}

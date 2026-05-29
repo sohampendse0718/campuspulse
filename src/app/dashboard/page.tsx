@@ -8,7 +8,8 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 type Issue = {
   id: string; title: string; description: string; category: string
-  status: string; latitude: number; longitude: number; address: string
+  status: string; location_block: string; escalation_level: number; is_urgent: boolean; deadline: string | null
+  latitude: number; longitude: number; address: string
   before_image_url: string | null; after_image_url: string | null
   created_at: string; resolved_at: string | null; upvotes: number; comment_count: number
 }
@@ -17,6 +18,21 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; border: string;
   open: { bg: '#EF444415', color: '#FCA5A5', border: '#EF444440', label: 'Open' },
   in_progress: { bg: '#F59E0B15', color: '#FCD34D', border: '#F59E0B40', label: 'In Progress' },
   resolved: { bg: '#10B98115', color: '#6EE7B7', border: '#10B98140', label: 'Resolved' },
+}
+
+const ROLE_LEVELS: Record<string, number> = {
+  student: 0,
+  ground_staff: 1,
+  block_incharge: 2,
+  faculty_coordinator: 3,
+  hod: 4,
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  ground_staff: 'Level 1: Ground Staff',
+  block_incharge: 'Level 2: Block Incharge',
+  faculty_coordinator: 'Level 3: Faculty Coord',
+  hod: 'Level 4: HOD Department Head',
 }
 
 const CHART_THEME = {
@@ -39,12 +55,17 @@ function CustomTooltip({ active, payload, label }: any) {
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
+  const [userRole, setUserRole] = useState<string>('')
   const [issues, setIssues] = useState<Issue[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
   const [newStatus, setNewStatus] = useState('')
   const [afterImage, setAfterImage] = useState<File | null>(null)
+  
+  const [escalateToNext, setEscalateToNext] = useState(false)
+  const [toggleUrgent, setToggleUrgent] = useState(false)
+  const [deadlineInput, setDeadlineInput] = useState('')
 
   useEffect(() => { checkUserAndFetchData() }, [])
 
@@ -53,18 +74,28 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { alert('Please log in first!'); router.push('/login'); return }
       const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      if (profileError || profile?.role !== 'municipal_official') {
-        alert('Access denied. Campus Admin role required.')
+      
+      if (profileError || !profile?.role || profile.role === 'student') {
+        alert('Access denied. Official authority role required.')
         router.push('/map'); return
       }
+      
       setUser(user)
-      fetchIssues()
+      setUserRole(profile.role)
+      fetchIssues(profile.role)
     } catch (err) { router.push('/login') }
   }
 
-  const fetchIssues = async () => {
+  const fetchIssues = async (role: string) => {
     try {
-      const { data, error } = await supabase.from('issues').select('*').order('created_at', { ascending: false })
+      let query = supabase.from('issues').select('*')
+      
+      const userLevel = ROLE_LEVELS[role] || 1
+      if (userLevel < 4) {
+        query = query.eq('escalation_level', userLevel)
+      }
+      
+      const { data, error } = await query.order('created_at', { ascending: false })
       if (error) throw error
       setIssues(data || [])
     } catch (error) { console.error('Error fetching issues:', error) }
@@ -72,7 +103,7 @@ export default function DashboardPage() {
   }
 
   const handleStatusUpdate = async () => {
-    if (!selectedIssue || !newStatus) return
+    if (!selectedIssue) return
     setUpdatingStatus(true)
     try {
       let afterImageUrl = selectedIssue.after_image_url
@@ -84,17 +115,52 @@ export default function DashboardPage() {
         const { data: { publicUrl } } = supabase.storage.from('issue-images').getPublicUrl(fileName)
         afterImageUrl = publicUrl
       }
-      const updateData: any = { status: newStatus, assigned_to: user.id }
+
+      const userLevel = ROLE_LEVELS[userRole] || 1
+      let targetEscalationLevel = selectedIssue.escalation_level
+      if (escalateToNext && userLevel < 4) {
+        targetEscalationLevel = selectedIssue.escalation_level + 1
+      }
+
+      const updateData: any = { 
+        status: newStatus, 
+        assigned_to: user.id,
+        escalation_level: targetEscalationLevel
+      }
+
       if (newStatus === 'resolved') {
         updateData.resolved_at = new Date().toISOString()
         if (afterImageUrl) updateData.after_image_url = afterImageUrl
       }
+
+      if (userLevel >= 3) {
+        updateData.is_urgent = toggleUrgent
+      }
+
+      if (userLevel === 4 && deadlineInput) {
+        updateData.deadline = new Date(deadlineInput).toISOString()
+      }
+
       const { error } = await supabase.from('issues').update(updateData).eq('id', selectedIssue.id)
       if (error) throw error
-      await supabase.from('issue_status_history').insert({ issue_id: selectedIssue.id, old_status: selectedIssue.status, new_status: newStatus, changed_by: user.id })
-      alert('Status updated!')
-      setSelectedIssue(null); setNewStatus(''); setAfterImage(null)
-      fetchIssues()
+
+      await supabase.from('issue_status_history').insert({ 
+        issue_id: selectedIssue.id, 
+        old_status: selectedIssue.status, 
+        new_status: newStatus, 
+        old_escalation_level: selectedIssue.escalation_level,
+        new_escalation_level: targetEscalationLevel,
+        changed_by: user.id 
+      })
+
+      alert('Issue updated successfully!')
+      setSelectedIssue(null)
+      setNewStatus('')
+      setAfterImage(null)
+      setEscalateToNext(false)
+      setToggleUrgent(false)
+      setDeadlineInput('')
+      fetchIssues(userRole)
     } catch (error: any) { alert('Error: ' + error.message) }
     finally { setUpdatingStatus(false) }
   }
@@ -106,11 +172,14 @@ export default function DashboardPage() {
   const resolutionRate = totalIssues > 0 ? ((resolvedIssues / totalIssues) * 100).toFixed(1) : '0'
 
   const categoryData = [
-    { name: 'Road', value: issues.filter(i => i.category === 'road').length, color: '#F59E0B' },
-    { name: 'Lighting', value: issues.filter(i => i.category === 'lighting').length, color: '#00E5FF' },
-    { name: 'Sanitation', value: issues.filter(i => i.category === 'sanitation').length, color: '#10B981' },
-    { name: 'Water', value: issues.filter(i => i.category === 'water').length, color: '#3B82F6' },
-    { name: 'Other', value: issues.filter(i => i.category === 'other').length, color: '#8B5CF6' },
+    { name: 'Cleaning', value: issues.filter(i => i.category === 'cleaning').length, color: '#10B981' },
+    { name: 'Electrical', value: issues.filter(i => i.category === 'electrical').length, color: '#00E5FF' },
+    { name: 'Water Leak', value: issues.filter(i => i.category === 'water_leakage').length, color: '#3B82F6' },
+    { name: 'Furniture', value: issues.filter(i => i.category === 'furniture').length, color: '#F59E0B' },
+    { name: 'Lab Equip', value: issues.filter(i => i.category === 'lab_equipment').length, color: '#EF4444' },
+    { name: 'Wiring/Proj', value: issues.filter(i => i.category === 'wiring_projector').length, color: '#8B5CF6' },
+    { name: 'Safety', value: issues.filter(i => i.category === 'safety').length, color: '#F87171' },
+    { name: 'Other', value: issues.filter(i => i.category === 'other').length, color: '#A3E635' },
   ].filter(item => item.value > 0)
 
   const statusData = [
@@ -245,14 +314,16 @@ export default function DashboardPage() {
         {/* Issues table */}
         <div style={{ background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 14, overflow: 'hidden' }}>
           <div style={{ padding: '18px 22px', borderBottom: '1px solid #1E1F2E', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <h3 style={{ color: '#F1F2F7', fontWeight: 700, fontSize: '0.95rem', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>All Issues</h3>
-            <span style={{ color: '#6B7280', fontSize: '0.8rem' }}>{issues.length} entries</span>
+            <h3 style={{ color: '#F1F2F7', fontWeight: 700, fontSize: '0.95rem', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+              Pending Tasks ({ROLE_LABELS[userRole] || 'Authority View'})
+            </h3>
+            <span style={{ color: '#6B7280', fontSize: '0.8rem' }}>{issues.length} items</span>
           </div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {['Title', 'Category', 'Status', 'Upvotes', 'Date', 'Action'].map(h => (
+                  {['Title', 'Block / Location', 'Category', 'Level', 'Status', 'Priority', 'Action'].map(h => (
                     <th key={h} style={{
                       padding: '12px 20px', textAlign: 'left',
                       color: '#6B7280', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.06em',
@@ -264,18 +335,25 @@ export default function DashboardPage() {
               <tbody>
                 {issues.map((issue, idx) => {
                   const st = STATUS_STYLES[issue.status] || STATUS_STYLES.open
+                  const isUrgent = issue.is_urgent
                   return (
                     <tr key={issue.id} style={{
                       borderTop: '1px solid #1A1B28',
                       transition: 'background 0.15s',
+                      background: isUrgent ? 'rgba(239, 68, 68, 0.03)' : 'transparent'
                     }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#1A1B28'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = isUrgent ? 'rgba(239, 68, 68, 0.05)' : '#1A1B28'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = isUrgent ? 'rgba(239, 68, 68, 0.03)' : 'transparent'}
                     >
-                      <td style={{ padding: '14px 20px', color: '#F1F2F7', fontSize: '0.875rem', fontWeight: 500, maxWidth: 240 }}>
-                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.title}</div>
+                      <td style={{ padding: '14px 20px', color: '#F1F2F7', fontSize: '0.875rem', fontWeight: 500, maxWidth: 220 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {isUrgent && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#EF4444', display: 'inline-block', boxShadow: '0 0 8px #EF4444' }} />}
+                          <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.title}</div>
+                        </div>
                       </td>
+                      <td style={{ padding: '14px 20px', color: '#9CA3AF', fontSize: '0.82rem' }}>{issue.location_block || 'N/A'}</td>
                       <td style={{ padding: '14px 20px', color: '#9CA3AF', fontSize: '0.82rem', textTransform: 'capitalize' }}>{issue.category}</td>
+                      <td style={{ padding: '14px 20px', color: '#8B5CF6', fontSize: '0.82rem', fontWeight: 600 }}>L{issue.escalation_level}</td>
                       <td style={{ padding: '14px 20px' }}>
                         <span style={{
                           padding: '3px 10px', borderRadius: 100, fontSize: '0.7rem', fontWeight: 600,
@@ -283,12 +361,23 @@ export default function DashboardPage() {
                           background: st.bg, color: st.color, border: `1px solid ${st.border}`,
                         }}>{st.label}</span>
                       </td>
-                      <td style={{ padding: '14px 20px', color: '#9CA3AF', fontSize: '0.82rem' }}>👍 {issue.upvotes}</td>
-                      <td style={{ padding: '14px 20px', color: '#6B7280', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                        {new Date(issue.created_at).toLocaleDateString()}
+                      <td style={{ padding: '14px 20px' }}>
+                        <span style={{
+                          padding: '3px 10px', borderRadius: 100, fontSize: '0.7rem', fontWeight: 600,
+                          background: isUrgent ? 'rgba(239,68,68,0.15)' : 'rgba(75,85,99,0.15)',
+                          color: isUrgent ? '#FCA5A5' : '#9CA3AF',
+                          border: isUrgent ? '1px solid rgba(239,68,68,0.3)' : '1px solid rgba(75,85,99,0.3)',
+                        }}>
+                          {isUrgent ? 'Urgent' : 'Normal'}
+                        </span>
                       </td>
                       <td style={{ padding: '14px 20px' }}>
-                        <button onClick={() => { setSelectedIssue(issue); setNewStatus(issue.status) }} style={{
+                        <button onClick={() => { 
+                          setSelectedIssue(issue); 
+                          setNewStatus(issue.status);
+                          setToggleUrgent(issue.is_urgent);
+                          setDeadlineInput(issue.deadline ? new Date(issue.deadline).toISOString().substring(0, 16) : '');
+                        }} style={{
                           padding: '5px 14px', borderRadius: 6, cursor: 'pointer',
                           background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.25)',
                           color: '#00E5FF', fontSize: '0.78rem', fontWeight: 600,
@@ -320,9 +409,9 @@ export default function DashboardPage() {
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
               <h3 style={{ color: '#F1F2F7', fontWeight: 800, fontSize: '1.2rem', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
-                Manage Issue
+                Manage Issue & Escalation
               </h3>
-              <button onClick={() => { setSelectedIssue(null); setNewStatus(''); setAfterImage(null) }} style={{
+              <button onClick={() => { setSelectedIssue(null); setNewStatus(''); setAfterImage(null); setEscalateToNext(false); }} style={{
                 width: 32, height: 32, borderRadius: 8, border: '1px solid #2A2D3D',
                 background: '#1E1F2E', color: '#6B7280', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -333,6 +422,14 @@ export default function DashboardPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div style={{ padding: '16px', background: '#0D0E18', borderRadius: 10, border: '1px solid #1E1F2E' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ color: '#8B5CF6', fontSize: '0.72rem', fontWeight: 600 }}>LEVEL {selectedIssue.escalation_level} · {selectedIssue.location_block}</span>
+                  {selectedIssue.deadline && (
+                    <span style={{ color: '#EF4444', fontSize: '0.72rem', fontWeight: 600 }}>
+                      Deadline: {new Date(selectedIssue.deadline).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
                 <h4 style={{ color: '#F1F2F7', fontWeight: 600, margin: '0 0 6px', fontSize: '0.95rem' }}>{selectedIssue.title}</h4>
                 <p style={{ color: '#9CA3AF', fontSize: '0.85rem', margin: 0, lineHeight: 1.6 }}>{selectedIssue.description}</p>
               </div>
@@ -359,6 +456,60 @@ export default function DashboardPage() {
                 </select>
               </div>
 
+              {/* Escalation Options based on Level */}
+              {ROLE_LEVELS[userRole] < 4 && selectedIssue.escalation_level < 4 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                  <input 
+                    type="checkbox" 
+                    id="escalateCheck" 
+                    checked={escalateToNext} 
+                    onChange={e => setEscalateToNext(e.target.checked)} 
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <label htmlFor="escalateCheck" style={{ color: '#F1F2F7', fontSize: '0.85rem', cursor: 'pointer' }}>
+                    Escalate to Level {selectedIssue.escalation_level + 1} ({
+                      selectedIssue.escalation_level === 1 ? 'Block Incharge' :
+                      selectedIssue.escalation_level === 2 ? 'Faculty Coordinator' : 'HOD'
+                    })
+                  </label>
+                </div>
+              )}
+
+              {/* Urgency Controls for Level 3 and 4 */}
+              {ROLE_LEVELS[userRole] >= 3 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+                  <input 
+                    type="checkbox" 
+                    id="urgentCheck" 
+                    checked={toggleUrgent} 
+                    onChange={e => setToggleUrgent(e.target.checked)} 
+                    style={{ cursor: 'pointer' }}
+                  />
+                  <label htmlFor="urgentCheck" style={{ color: '#EF4444', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
+                    Mark Issue as Urgent / Priority Escalation
+                  </label>
+                </div>
+              )}
+
+              {/* Deadline Configuration for HOD (Level 4) */}
+              {ROLE_LEVELS[userRole] === 4 && (
+                <div>
+                  <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
+                    SET RESOLUTION DEADLINE (HOD ONLY)
+                  </label>
+                  <input 
+                    type="datetime-local" 
+                    value={deadlineInput} 
+                    onChange={e => setDeadlineInput(e.target.value)} 
+                    style={{
+                      width: '100%', padding: '11px 14px', background: '#12131C',
+                      border: '1px solid #2A2D3D', borderRadius: 10, color: '#F1F2F7',
+                      fontSize: '0.9rem', outline: 'none'
+                    }}
+                  />
+                </div>
+              )}
+
               {newStatus === 'resolved' && (
                 <div>
                   <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
@@ -383,9 +534,9 @@ export default function DashboardPage() {
                   color: updatingStatus ? '#6B7280' : '#090A0F',
                   fontWeight: 700, fontSize: '0.9rem', cursor: updatingStatus ? 'not-allowed' : 'pointer',
                 }}>
-                  {updatingStatus ? 'Updating...' : 'Update Status'}
+                  {updatingStatus ? 'Updating...' : 'Save Changes'}
                 </button>
-                <button onClick={() => { setSelectedIssue(null); setNewStatus(''); setAfterImage(null) }} style={{
+                <button onClick={() => { setSelectedIssue(null); setNewStatus(''); setAfterImage(null); setEscalateToNext(false); }} style={{
                   padding: '12px 24px', borderRadius: 10,
                   background: '#1E1F2E', border: '1px solid #2A2D3D',
                   color: '#9CA3AF', fontWeight: 600, cursor: 'pointer',
