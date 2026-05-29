@@ -30,8 +30,12 @@ export default function ReportPage() {
 
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) router.push('/login')
-    else setUser(user)
+    if (!user) {
+      alert('Please log in first!')
+      router.push('/login')
+    } else {
+      setUser(user)
+    }
   }
 
   const getLocation = () => {
@@ -54,11 +58,17 @@ export default function ReportPage() {
 
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+        headers: {
+          'User-Agent': 'CampusPulse/1.0 (contact@CampusPulse.com)' // required by Nominatim
+        }
+      })
       const data = await res.json()
       if (data.display_name) setAddress(data.display_name)
     } catch (error) {
       console.error('Reverse geocoding error:', error)
+      // Fallback
+      setAddress('Unknown address (Reverse geocoding failed)')
     }
   }
 
@@ -79,28 +89,40 @@ export default function ReportPage() {
 
     setLoading(true)
     try {
-      let imageUrl = null
+      let beforeImageUrl = null
+
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop()
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`
-        const { error: uploadError } = await supabase.storage.from('issue-images').upload(fileName, imageFile)
+        const fileName = `${user.id}/before_${Date.now()}.${fileExt}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('issue-images')
+          .upload(fileName, imageFile)
+
         if (uploadError) throw uploadError
-        const { data: { publicUrl } } = supabase.storage.from('issue-images').getPublicUrl(fileName)
-        imageUrl = publicUrl
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('issue-images')
+          .getPublicUrl(fileName)
+
+        beforeImageUrl = publicUrl
       }
 
-      const { error } = await supabase.from('issues').insert({
-        title,
-        description,
-        category,
-        latitude,
-        longitude,
-        address,
-        before_image_url: imageUrl,
-        reported_by: user.id,
-        status: 'open'
-      })
+      const { error } = await supabase
+        .from('issues')
+        .insert({
+          title,
+          description,
+          category,
+          latitude,
+          longitude,
+          address,
+          before_image_url: beforeImageUrl,
+          reported_by: user.id
+        })
+
       if (error) throw error
+
       alert('Issue reported successfully!')
       router.push('/map')
     } catch (error: any) {
@@ -124,7 +146,7 @@ export default function ReportPage() {
         <div className="max-w-6xl mx-auto px-5 py-3 flex justify-between items-center">
           <Link href="/" className="flex items-center gap-2">
             <MapPin className="h-6 w-6 text-[#0078D4]" />
-            <h1 className="text-xl font-bold text-gray-900">CityPulse</h1>
+            <h1 className="text-xl font-bold text-gray-900">CampusPulse</h1>
           </Link>
           <div className="flex gap-4">
             <Link href="/map" className="text-gray-700 hover:text-[#0078D4]">Map</Link>
@@ -154,7 +176,7 @@ export default function ReportPage() {
           >
             Report an Issue
           </motion.h2>
-          <p className="text-gray-500 mb-6 text-sm">Help improve your city by reporting civic problems</p>
+          <p className="text-gray-500 mb-6 text-sm">Help improve your campus by reporting campus problems</p>
 
           <form onSubmit={handleSubmit} className="space-y-5 text-sm">
             {/* Title */}

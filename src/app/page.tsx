@@ -10,7 +10,7 @@ export default function Home() {
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <MapPin className="h-8 w-8 text-[#0078D4]" />
-              <h1 className="text-2xl font-bold text-gray-900">CityPulse</h1>
+              <h1 className="text-2xl font-bold text-gray-900">CampusPulse</h1>
             </div>
             <div className="flex space-x-4">
               <Link 
@@ -109,7 +109,7 @@ export default function Home() {
           <StepCard
             number="2"
             title="Track"
-            description="Monitor the status of your issue on the interactive city map"
+            description="Monitor the status of your issue on the interactive campus map"
           />
           <StepCard
             number="3"
@@ -123,7 +123,7 @@ export default function Home() {
       <footer className="bg-gray-900 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <p className="text-gray-400">
-            Powered by <span className="text-[#0078D4] font-semibold">CityPulse</span>
+            Powered by <span className="text-[#0078D4] font-semibold">CampusPulse</span>
           </p>
           <p className="text-gray-500 text-sm mt-2">
             Making cities better, one report at a time.

@@ -24,21 +24,21 @@ export default function LoginPage() {
         email,
         password,
       })
-
       if (error) throw error
 
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', data.user.id)
-          .single()
+      // Fetch user profile to check role
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
 
-        if (profile?.role === 'municipal_official' || profile?.role === 'moderator') {
-          router.push('/dashboard')
-        } else {
-          router.push('/map')
-        }
+      if (profileError) throw profileError
+
+      if (profile?.role === 'municipal_official') {
+        router.push('/dashboard')
+      } else {
+        router.push('/map')
       }
     } catch (error: any) {
       setError(error.message)
@@ -110,7 +110,7 @@ export default function LoginPage() {
             animate={{ opacity: [1, 0.7, 1] }}
             transition={{ duration: 3, repeat: Infinity }}
           >
-            CityPulse
+            CampusPulse
           </motion.h1>
         </motion.div>
 
@@ -128,7 +128,7 @@ export default function LoginPage() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
         >
-          Welcome back 👋 Let’s make our city better together.
+          Welcome back 👋 Let’s make our campus better together.
         </motion.p>
 
         <motion.form

@@ -45,30 +45,33 @@ export default function DashboardPage() {
   }, [])
 
   const checkUserAndFetchData = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) {
+        alert('Please log in first!')
+        router.push('/login')
+        return
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError || profile?.role !== 'municipal_official') {
+        alert('Access denied. Campus Admin/Official role required.')
+        router.push('/map')
+        return
+      }
+
+      setUser(user)
+      setProfile(profile)
+      fetchIssues()
+    } catch (err: any) {
+      console.error('Auth check error:', err)
       router.push('/login')
-      return
     }
-
-    setUser(user)
-
-    // Check if user is admin/municipal official
-    const { data: profileData } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (!profileData || (profileData.role !== 'municipal_official' && profileData.role !== 'moderator')) {
-      alert('Access denied. This page is for municipal officials only.')
-      router.push('/map')
-      return
-    }
-
-    setProfile(profileData)
-    fetchIssues()
   }
 
   const fetchIssues = async () => {
@@ -209,7 +212,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2">
               <MapPin className="h-8 w-8 text-[#0078D4]" />
-              <h1 className="text-2xl font-bold text-gray-900">CityPulse Admin</h1>
+              <h1 className="text-2xl font-bold text-gray-900">CampusPulse Admin</h1>
             </Link>
             <div className="flex space-x-4">
               <Link href="/map" className="px-4 py-2 text-gray-700 hover:text-[#0078D4]">

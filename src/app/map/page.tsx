@@ -41,16 +41,23 @@ export default function MapPage() {
   useEffect(() => {
     fetchIssues()
 
-    // Subscribe to real-time updates
-    const subscription = supabase
-      .channel('issues-channel')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, () => {
-        fetchIssues()
-      })
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'issues'
+        },
+        (payload) => {
+          fetchIssues()
+        }
+      )
       .subscribe()
 
     return () => {
-      subscription.unsubscribe()
+      supabase.removeChannel(channel)
     }
   }, [])
 
@@ -115,7 +122,7 @@ export default function MapPage() {
           <div className="flex justify-between items-center">
             <Link href="/" className="flex items-center space-x-2">
               <MapPin className="h-8 w-8 text-[#0078D4]" />
-              <h1 className="text-2xl font-bold text-gray-900">CityPulse</h1>
+              <h1 className="text-2xl font-bold text-gray-900">CampusPulse</h1>
             </Link>
             <div className="flex space-x-4">
               <Link href="/report" className="px-6 py-2 bg-[#0078D4] text-white rounded-lg hover:bg-blue-700 font-medium">

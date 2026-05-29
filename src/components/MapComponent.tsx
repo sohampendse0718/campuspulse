@@ -30,12 +30,19 @@ export default function MapComponent({ issues, onMarkerClick }: MapComponentProp
   useEffect(() => {
     // Initialize map only once
     if (!mapRef.current) {
-      // Default center (you can change this to your city's coordinates)
-      const defaultCenter: [number, number] = [15.2993, 74.1240] // Goa, India
+      // GEC Campus Bounds
+      const southWest = L.latLng(15.4112961, 73.9764297);
+      const northEast = L.latLng(15.4293129, 73.9835992);
+      const bounds = L.latLngBounds(southWest, northEast);
+      
+      const defaultCenter: [number, number] = [15.4202821, 73.9804854] // GEC Campus Center
       
       mapRef.current = L.map('map', {
         center: defaultCenter,
-        zoom: 12,
+        zoom: 16,
+        minZoom: 15,
+        maxBounds: bounds,
+        maxBoundsViscosity: 1.0,
         zoomControl: true,
       })
 

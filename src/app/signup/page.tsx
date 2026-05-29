@@ -28,24 +28,12 @@ export default function SignupPage() {
           data: {
             full_name: fullName,
             role: role,
-          },
-        },
+          }
+        }
       })
-
       if (error) throw error
-
-      if (data.user) {
-        // Update profile with role
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .update({ role: role })
-          .eq('id', data.user.id)
-
-        if (profileError) throw profileError
-
-        alert('Signup successful! Please check your email for verification.')
-        router.push('/login')
-      }
+      alert('Signup successful! Please check your email for confirmation if required, and then sign in.')
+      router.push('/login')
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -59,7 +47,7 @@ export default function SignupPage() {
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <Link href="/" className="flex justify-center items-center space-x-2">
           <MapPin className="h-10 w-10 text-[#0078D4]" />
-          <h1 className="text-3xl font-bold text-gray-900">CityPulse</h1>
+          <h1 className="text-3xl font-bold text-gray-900">CampusPulse</h1>
         </Link>
         <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
           Create your account

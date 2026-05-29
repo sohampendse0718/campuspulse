@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CityPulse - Report. Resolve. Rebuild.",
+  title: "CampusPulse - Report. Resolve. Rebuild.",
   description: "Community-driven civic issue reporting platform",
 };
 
