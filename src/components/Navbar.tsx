@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { MapPin, Map, Rss, AlertTriangle, LayoutDashboard, LogIn, UserPlus, LogOut } from 'lucide-react'
+import { MapPin, Map, Rss, AlertTriangle, LayoutDashboard, LogIn, UserPlus, LogOut, ShoppingBag } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 
@@ -10,6 +10,7 @@ const navLinks = [
   { href: '/map', label: 'Map', icon: Map },
   { href: '/feed', label: 'Feed', icon: Rss },
   { href: '/report', label: 'Report', icon: AlertTriangle },
+  { href: '/bazaar', label: 'Bazaar', icon: ShoppingBag, studentOnly: true },
   { href: '/dashboard', label: 'Admin', icon: LayoutDashboard },
 ]
 
@@ -78,6 +79,9 @@ export default function Navbar() {
   const visibleLinks = navLinks.filter(link => {
     if (link.label === 'Admin') {
       return isAdmin
+    }
+    if ((link as any).studentOnly) {
+      return role === 'student'
     }
     return true
   })
