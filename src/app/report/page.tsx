@@ -1,20 +1,34 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { MapPin, Upload, Loader2 } from 'lucide-react'
+import { MapPin, Upload, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react'
 
 type Category = 'road' | 'lighting' | 'sanitation' | 'water' | 'other'
+
+const CATEGORIES: { value: Category; label: string; emoji: string; color: string }[] = [
+  { value: 'road', label: 'Road / Infrastructure', emoji: '🛣️', color: '#F59E0B' },
+  { value: 'lighting', label: 'Lighting', emoji: '💡', color: '#00E5FF' },
+  { value: 'sanitation', label: 'Sanitation', emoji: '🧹', color: '#10B981' },
+  { value: 'water', label: 'Water / Plumbing', emoji: '💧', color: '#3B82F6' },
+  { value: 'other', label: 'Other', emoji: '📋', color: '#8B5CF6' },
+]
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '12px 14px',
+  background: '#12131C', border: '1px solid #2A2D3D',
+  borderRadius: 10, color: '#F1F2F7', fontSize: '0.9rem',
+  outline: 'none', boxSizing: 'border-box',
+  transition: 'border-color 0.2s ease',
+  fontFamily: 'inherit',
+}
 
 export default function ReportPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [locationLoading, setLocationLoading] = useState(false)
-
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState<Category>('road')
@@ -23,53 +37,32 @@ export default function ReportPage() {
   const [address, setAddress] = useState('')
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [success, setSuccess] = useState(false)
 
   useEffect(() => {
-    checkUser()
-  }, [])
-
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      alert('Please log in first!')
-      router.push('/login')
-    } else {
-      setUser(user)
-    }
-  }
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) { alert('Please log in first!'); router.push('/login') }
+      else setUser(user)
+    })
+  }, [router])
 
   const getLocation = () => {
     setLocationLoading(true)
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          setLatitude(pos.coords.latitude)
-          setLongitude(pos.coords.longitude)
-          setLocationLoading(false)
-          reverseGeocode(pos.coords.latitude, pos.coords.longitude)
-        },
-        (err) => {
-          alert('Error getting location: ' + err.message)
-          setLocationLoading(false)
-        }
-      )
-    } else alert('Geolocation not supported')
-  }
-
-  const reverseGeocode = async (lat: number, lng: number) => {
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
-        headers: {
-          'User-Agent': 'CampusPulse/1.0 (contact@CampusPulse.com)' // required by Nominatim
-        }
-      })
-      const data = await res.json()
-      if (data.display_name) setAddress(data.display_name)
-    } catch (error) {
-      console.error('Reverse geocoding error:', error)
-      // Fallback
-      setAddress('Unknown address (Reverse geocoding failed)')
-    }
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setLatitude(pos.coords.latitude)
+        setLongitude(pos.coords.longitude)
+        setLocationLoading(false)
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}`, {
+            headers: { 'User-Agent': 'CampusPulse/1.0 (contact@campuspulse.com)' }
+          })
+          const data = await res.json()
+          if (data.display_name) setAddress(data.display_name)
+        } catch { setAddress('Location detected') }
+      },
+      (err) => { alert('Error: ' + err.message); setLocationLoading(false) }
+    )
   }
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -85,46 +78,24 @@ export default function ReportPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return alert('Please log in')
-    if (!latitude || !longitude) return alert('Please get your location')
-
+    if (!latitude || !longitude) return alert('Please get your location first')
     setLoading(true)
     try {
       let beforeImageUrl = null
-
       if (imageFile) {
         const fileExt = imageFile.name.split('.').pop()
         const fileName = `${user.id}/before_${Date.now()}.${fileExt}`
-
-        const { error: uploadError } = await supabase.storage
-          .from('issue-images')
-          .upload(fileName, imageFile)
-
+        const { error: uploadError } = await supabase.storage.from('issue-images').upload(fileName, imageFile)
         if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('issue-images')
-          .getPublicUrl(fileName)
-
+        const { data: { publicUrl } } = supabase.storage.from('issue-images').getPublicUrl(fileName)
         beforeImageUrl = publicUrl
       }
-
-      const { error } = await supabase
-        .from('issues')
-        .insert({
-          title,
-          description,
-          category,
-          latitude,
-          longitude,
-          address,
-          before_image_url: beforeImageUrl,
-          reported_by: user.id
-        })
-
+      const { error } = await supabase.from('issues').insert({
+        title, description, category, latitude, longitude, address, before_image_url: beforeImageUrl, reported_by: user.id
+      })
       if (error) throw error
-
-      alert('Issue reported successfully!')
-      router.push('/map')
+      setSuccess(true)
+      setTimeout(() => router.push('/map'), 2000)
     } catch (error: any) {
       alert('Error: ' + error.message)
     } finally {
@@ -132,152 +103,190 @@ export default function ReportPage() {
     }
   }
 
-  if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+  if (!user) return (
+    <div style={{ minHeight: '100vh', background: '#090A0F', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 32, height: 32, border: '2px solid #2A2D3D', borderTopColor: '#00E5FF', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+
+  if (success) return (
+    <div style={{ minHeight: '100vh', background: '#090A0F', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
+      <div style={{
+        width: 72, height: 72, borderRadius: '50%',
+        background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <CheckCircle2 size={36} color="#10B981" />
+      </div>
+      <h2 style={{ color: '#F1F2F7', fontWeight: 700, fontSize: '1.4rem', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>Issue Reported!</h2>
+      <p style={{ color: '#6B7280', margin: 0 }}>Redirecting to map...</p>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-100 via-white to-blue-50">
-      {/* Header */}
-      <motion.header
-        initial={{ y: -60, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-30"
-      >
-        <div className="max-w-6xl mx-auto px-5 py-3 flex justify-between items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <MapPin className="h-6 w-6 text-[#0078D4]" />
-            <h1 className="text-xl font-bold text-gray-900">CampusPulse</h1>
-          </Link>
-          <div className="flex gap-4">
-            <Link href="/map" className="text-gray-700 hover:text-[#0078D4]">Map</Link>
-            <Link href="/feed" className="text-gray-700 hover:text-[#0078D4]">Feed</Link>
+    <div style={{ background: '#090A0F', minHeight: '100vh', padding: '32px 1rem 60px' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto' }}>
+
+        {/* Page header */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            padding: '4px 12px', borderRadius: 100,
+            background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)',
+            color: '#FCA5A5', fontSize: '0.75rem', fontWeight: 600,
+            letterSpacing: '0.06em', marginBottom: 12,
+          }}>
+            <AlertCircle size={11} /> REPORT AN ISSUE
           </div>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#F1F2F7', margin: '0 0 6px', fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.02em' }}>
+            Submit a Campus Issue
+          </h1>
+          <p style={{ color: '#6B7280', fontSize: '0.875rem', margin: 0 }}>
+            Help campus administration identify and resolve problems faster
+          </p>
         </div>
-      </motion.header>
 
-      {/* Form Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="max-w-2xl mx-auto px-4 py-10"
-      >
-        <motion.div
-          layout
-          className="bg-white rounded-2xl shadow-md p-6 md:p-8"
-          whileHover={{ scale: 1.01 }}
-          transition={{ type: 'spring', stiffness: 150 }}
-        >
-          <motion.h2
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="text-2xl font-bold text-gray-800 mb-1"
-          >
-            Report an Issue
-          </motion.h2>
-          <p className="text-gray-500 mb-6 text-sm">Help improve your campus by reporting campus problems</p>
+        {/* Form Card */}
+        <div style={{
+          background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 20, overflow: 'hidden',
+        }}>
+          <form onSubmit={handleSubmit} style={{ padding: '28px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
 
-          <form onSubmit={handleSubmit} className="space-y-5 text-sm">
-            {/* Title */}
-            <motion.div whileFocus={{ scale: 1.02 }}>
-              <label className="font-medium text-gray-700 mb-1 block">Issue Title *</label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                placeholder="e.g. Broken streetlight near park"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0078D4] outline-none"
-              />
-            </motion.div>
-
-            {/* Category */}
-            <motion.div whileFocus={{ scale: 1.02 }}>
-              <label className="font-medium text-gray-700 mb-1 block">Category *</label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as Category)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0078D4] outline-none"
-              >
-                <option value="road">Road</option>
-                <option value="lighting">Lighting</option>
-                <option value="sanitation">Sanitation</option>
-                <option value="water">Water</option>
-                <option value="other">Other</option>
-              </select>
-            </motion.div>
-
-            {/* Description */}
-            <motion.div whileFocus={{ scale: 1.02 }}>
-              <label className="font-medium text-gray-700 mb-1 block">Description *</label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                required
-                rows={3}
-                placeholder="Describe the issue clearly..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0078D4] outline-none"
-              />
-            </motion.div>
-
-            {/* Location */}
-            <motion.div>
-              <label className="font-medium text-gray-700 mb-1 block">Location *</label>
-              <motion.button
-                type="button"
-                onClick={getLocation}
-                whileTap={{ scale: 0.97 }}
-                className="flex items-center gap-2 px-4 py-2 bg-[#0078D4] text-white rounded-lg hover:bg-blue-700"
-              >
-                {locationLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <MapPin className="h-4 w-4" />}
-                {locationLoading ? 'Getting...' : 'Get Location'}
-              </motion.button>
-              {latitude && (
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="mt-1 text-xs text-gray-600"
-                >
-                  📍 {latitude.toFixed(5)}, {longitude?.toFixed(5)} <br />
-                  {address && <span>{address}</span>}
-                </motion.div>
-              )}
-            </motion.div>
-
-            {/* Image Upload */}
-            <motion.div>
-              <label className="font-medium text-gray-700 mb-1 block">Photo (Before Image)</label>
-              <label className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg cursor-pointer">
-                <Upload className="h-4 w-4" />
-                <span>Upload Image</span>
-                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-              </label>
-              {imagePreview && (
-                <motion.img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="mt-3 rounded-lg shadow-md object-cover w-full h-48"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.4 }}
+              {/* Title */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
+                  ISSUE TITLE *
+                </label>
+                <input
+                  type="text" required value={title} onChange={e => setTitle(e.target.value)}
+                  placeholder="e.g. Broken streetlight near hostel block C"
+                  style={inputStyle}
+                  onFocus={e => e.target.style.borderColor = '#00E5FF'}
+                  onBlur={e => e.target.style.borderColor = '#2A2D3D'}
                 />
-              )}
-            </motion.div>
+              </div>
 
-            {/* Submit Button */}
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.97 }}
-              disabled={loading}
-              className="w-full py-2 bg-[#0078D4] text-white rounded-lg font-semibold hover:bg-blue-700 flex items-center justify-center"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit Report'}
-            </motion.button>
+              {/* Category */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 12, letterSpacing: '0.04em' }}>
+                  CATEGORY *
+                </label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+                  {CATEGORIES.map(({ value, label, emoji, color }) => (
+                    <button key={value} type="button" onClick={() => setCategory(value)} style={{
+                      padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                      background: category === value ? `${color}15` : '#1E1F2E',
+                      border: category === value ? `1px solid ${color}50` : '1px solid #2A2D3D',
+                      color: category === value ? color : '#6B7280',
+                      fontSize: '0.8rem', fontWeight: 500,
+                      display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4,
+                      transition: 'all 0.2s ease', textAlign: 'left',
+                    }}>
+                      <span style={{ fontSize: '1.1rem' }}>{emoji}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
+                  DESCRIPTION *
+                </label>
+                <textarea
+                  required rows={4} value={description} onChange={e => setDescription(e.target.value)}
+                  placeholder="Describe the issue in detail. What's the problem and where exactly is it located?"
+                  style={{ ...inputStyle, resize: 'vertical', padding: '12px 14px' }}
+                  onFocus={e => e.target.style.borderColor = '#00E5FF'}
+                  onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+                />
+              </div>
+
+              {/* Location */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
+                  LOCATION *
+                </label>
+                <button type="button" onClick={getLocation} style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  padding: '10px 18px', borderRadius: 10, cursor: 'pointer',
+                  background: latitude ? 'rgba(16,185,129,0.1)' : 'rgba(0,229,255,0.08)',
+                  border: latitude ? '1px solid rgba(16,185,129,0.35)' : '1px solid rgba(0,229,255,0.3)',
+                  color: latitude ? '#10B981' : '#00E5FF',
+                  fontSize: '0.875rem', fontWeight: 600, transition: 'all 0.2s',
+                }}>
+                  {locationLoading ? <Loader2 size={15} style={{ animation: 'spin 0.8s linear infinite' }} /> : <MapPin size={15} />}
+                  {locationLoading ? 'Detecting location...' : latitude ? 'Location detected ✓' : 'Get My Location'}
+                </button>
+                {latitude && address && (
+                  <div style={{
+                    marginTop: 10, padding: '10px 14px', borderRadius: 8,
+                    background: '#0D0E18', border: '1px solid #1E1F2E',
+                    color: '#9CA3AF', fontSize: '0.78rem', lineHeight: 1.5,
+                  }}>
+                    📍 {address}
+                    <br /><span style={{ color: '#4B5563', fontSize: '0.72rem' }}>{latitude.toFixed(6)}, {longitude?.toFixed(6)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Image Upload */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
+                  PHOTO (OPTIONAL)
+                </label>
+                <label style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
+                  background: '#1E1F2E', border: '1px dashed #353851', borderRadius: 10,
+                  cursor: 'pointer', color: '#6B7280', fontSize: '0.875rem',
+                  transition: 'all 0.2s ease',
+                }}>
+                  <Upload size={16} />
+                  {imageFile ? imageFile.name : 'Click to upload before-photo'}
+                  <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                </label>
+                {imagePreview && (
+                  <div style={{ position: 'relative', marginTop: 10 }}>
+                    <img src={imagePreview} alt="Preview" style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, border: '1px solid #2A2D3D', display: 'block' }} />
+                    <button type="button" onClick={() => { setImagePreview(null); setImageFile(null) }} style={{
+                      position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%',
+                      background: 'rgba(9,10,15,0.8)', border: '1px solid #2A2D3D',
+                      color: '#9CA3AF', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <X size={13} />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Submit */}
+              <button type="submit" disabled={loading} style={{
+                width: '100%', padding: '14px',
+                background: loading ? '#1E1F2E' : '#00E5FF',
+                color: loading ? '#6B7280' : '#090A0F',
+                border: 'none', borderRadius: 10,
+                fontWeight: 700, fontSize: '1rem',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                transition: 'all 0.2s ease', marginTop: 8,
+              }}
+                onMouseEnter={e => { if (!loading) { (e.currentTarget as HTMLElement).style.boxShadow = '0 0 25px rgba(0,229,255,0.35)'; (e.currentTarget as HTMLElement).style.background = '#00B8CC' } }}
+                onMouseLeave={e => { if (!loading) { (e.currentTarget as HTMLElement).style.boxShadow = 'none'; (e.currentTarget as HTMLElement).style.background = '#00E5FF' } }}
+              >
+                {loading ? (
+                  <><Loader2 size={16} style={{ animation: 'spin 0.8s linear infinite' }} /> Submitting...</>
+                ) : (
+                  'Submit Report'
+                )}
+              </button>
+            </div>
           </form>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } } input::placeholder, textarea::placeholder { color: #4B5563; }`}</style>
     </div>
   )
 }

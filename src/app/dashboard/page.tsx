@@ -3,467 +3,405 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { MapPin, TrendingUp, Upload, CheckCircle, Clock, AlertCircle, Loader2 } from 'lucide-react'
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts'
+import { TrendingUp, Upload, CheckCircle, Clock, AlertCircle, Loader2, X, BarChart3, Shield } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts'
 
 type Issue = {
-  id: string
-  title: string
-  description: string
-  category: string
-  status: string
-  latitude: number
-  longitude: number
-  address: string
-  before_image_url: string | null
-  after_image_url: string | null
-  created_at: string
-  resolved_at: string | null
-  upvotes: number
-  comment_count: number
+  id: string; title: string; description: string; category: string
+  status: string; latitude: number; longitude: number; address: string
+  before_image_url: string | null; after_image_url: string | null
+  created_at: string; resolved_at: string | null; upvotes: number; comment_count: number
 }
 
-type Profile = {
-  role: string
+const STATUS_STYLES: Record<string, { bg: string; color: string; border: string; label: string }> = {
+  open: { bg: '#EF444415', color: '#FCA5A5', border: '#EF444440', label: 'Open' },
+  in_progress: { bg: '#F59E0B15', color: '#FCD34D', border: '#F59E0B40', label: 'In Progress' },
+  resolved: { bg: '#10B98115', color: '#6EE7B7', border: '#10B98140', label: 'Resolved' },
+}
+
+const CHART_THEME = {
+  background: 'transparent',
+  text: '#9CA3AF',
+  grid: '#2A2D3D',
+  tooltip: { bg: '#1E1F2E', border: '#353851', color: '#F1F2F7' },
+}
+
+function CustomTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null
+  return (
+    <div style={{ background: '#1E1F2E', border: '1px solid #353851', borderRadius: 8, padding: '8px 12px', fontSize: '0.8rem' }}>
+      <p style={{ color: '#9CA3AF', marginBottom: 4 }}>{label}</p>
+      {payload.map((p: any) => <p key={p.name} style={{ color: p.color, margin: 0 }}>{p.name}: {p.value}</p>)}
+    </div>
+  )
 }
 
 export default function DashboardPage() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
   const [issues, setIssues] = useState<Issue[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedIssue, setSelectedIssue] = useState<Issue | null>(null)
   const [updatingStatus, setUpdatingStatus] = useState(false)
-  const [uploadingImage, setUploadingImage] = useState(false)
-  const [newStatus, setNewStatus] = useState<string>('')
+  const [newStatus, setNewStatus] = useState('')
   const [afterImage, setAfterImage] = useState<File | null>(null)
 
-  useEffect(() => {
-    checkUserAndFetchData()
-  }, [])
+  useEffect(() => { checkUserAndFetchData() }, [])
 
   const checkUserAndFetchData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        alert('Please log in first!')
-        router.push('/login')
-        return
-      }
-
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
+      if (!user) { alert('Please log in first!'); router.push('/login'); return }
+      const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', user.id).single()
       if (profileError || profile?.role !== 'municipal_official') {
-        alert('Access denied. Campus Admin/Official role required.')
-        router.push('/map')
-        return
+        alert('Access denied. Campus Admin role required.')
+        router.push('/map'); return
       }
-
       setUser(user)
-      setProfile(profile)
       fetchIssues()
-    } catch (err: any) {
-      console.error('Auth check error:', err)
-      router.push('/login')
-    }
+    } catch (err) { router.push('/login') }
   }
 
   const fetchIssues = async () => {
     try {
-      const { data, error } = await supabase
-        .from('issues')
-        .select('*')
-        .order('created_at', { ascending: false })
-
+      const { data, error } = await supabase.from('issues').select('*').order('created_at', { ascending: false })
       if (error) throw error
       setIssues(data || [])
-    } catch (error) {
-      console.error('Error fetching issues:', error)
-    } finally {
-      setLoading(false)
-    }
+    } catch (error) { console.error('Error fetching issues:', error) }
+    finally { setLoading(false) }
   }
 
   const handleStatusUpdate = async () => {
     if (!selectedIssue || !newStatus) return
-
     setUpdatingStatus(true)
-
     try {
       let afterImageUrl = selectedIssue.after_image_url
-
-      // Upload after image if provided and status is resolved
       if (afterImage && newStatus === 'resolved') {
         const fileExt = afterImage.name.split('.').pop()
         const fileName = `${user.id}/after_${Date.now()}.${fileExt}`
-        
-        const { error: uploadError } = await supabase.storage
-          .from('issue-images')
-          .upload(fileName, afterImage)
-
+        const { error: uploadError } = await supabase.storage.from('issue-images').upload(fileName, afterImage)
         if (uploadError) throw uploadError
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('issue-images')
-          .getPublicUrl(fileName)
-        
+        const { data: { publicUrl } } = supabase.storage.from('issue-images').getPublicUrl(fileName)
         afterImageUrl = publicUrl
       }
-
-      // Update issue status
-      const updateData: any = {
-        status: newStatus,
-        assigned_to: user.id,
-      }
-
+      const updateData: any = { status: newStatus, assigned_to: user.id }
       if (newStatus === 'resolved') {
         updateData.resolved_at = new Date().toISOString()
-        if (afterImageUrl) {
-          updateData.after_image_url = afterImageUrl
-        }
+        if (afterImageUrl) updateData.after_image_url = afterImageUrl
       }
-
-      const { error } = await supabase
-        .from('issues')
-        .update(updateData)
-        .eq('id', selectedIssue.id)
-
+      const { error } = await supabase.from('issues').update(updateData).eq('id', selectedIssue.id)
       if (error) throw error
-
-      // Create status history entry
-      await supabase
-        .from('issue_status_history')
-        .insert({
-          issue_id: selectedIssue.id,
-          old_status: selectedIssue.status,
-          new_status: newStatus,
-          changed_by: user.id,
-        })
-
-      alert('Issue status updated successfully!')
-      setSelectedIssue(null)
-      setNewStatus('')
-      setAfterImage(null)
+      await supabase.from('issue_status_history').insert({ issue_id: selectedIssue.id, old_status: selectedIssue.status, new_status: newStatus, changed_by: user.id })
+      alert('Status updated!')
+      setSelectedIssue(null); setNewStatus(''); setAfterImage(null)
       fetchIssues()
-    } catch (error: any) {
-      alert('Error updating status: ' + error.message)
-    } finally {
-      setUpdatingStatus(false)
-    }
+    } catch (error: any) { alert('Error: ' + error.message) }
+    finally { setUpdatingStatus(false) }
   }
 
-  // Analytics calculations
   const totalIssues = issues.length
   const openIssues = issues.filter(i => i.status === 'open').length
   const inProgressIssues = issues.filter(i => i.status === 'in_progress').length
   const resolvedIssues = issues.filter(i => i.status === 'resolved').length
-  const resolutionRate = totalIssues > 0 ? ((resolvedIssues / totalIssues) * 100).toFixed(1) : 0
+  const resolutionRate = totalIssues > 0 ? ((resolvedIssues / totalIssues) * 100).toFixed(1) : '0'
 
-  // Category data for pie chart
   const categoryData = [
-    { name: 'Road', value: issues.filter(i => i.category === 'road').length, color: '#3b82f6' },
-    { name: 'Lighting', value: issues.filter(i => i.category === 'lighting').length, color: '#f59e0b' },
-    { name: 'Sanitation', value: issues.filter(i => i.category === 'sanitation').length, color: '#10b981' },
-    { name: 'Water', value: issues.filter(i => i.category === 'water').length, color: '#06b6d4' },
-    { name: 'Other', value: issues.filter(i => i.category === 'other').length, color: '#6b7280' },
+    { name: 'Road', value: issues.filter(i => i.category === 'road').length, color: '#F59E0B' },
+    { name: 'Lighting', value: issues.filter(i => i.category === 'lighting').length, color: '#00E5FF' },
+    { name: 'Sanitation', value: issues.filter(i => i.category === 'sanitation').length, color: '#10B981' },
+    { name: 'Water', value: issues.filter(i => i.category === 'water').length, color: '#3B82F6' },
+    { name: 'Other', value: issues.filter(i => i.category === 'other').length, color: '#8B5CF6' },
   ].filter(item => item.value > 0)
 
-  // Status data for bar chart
   const statusData = [
-    { name: 'Open', count: openIssues, color: '#ef4444' },
-    { name: 'In Progress', count: inProgressIssues, color: '#eab308' },
-    { name: 'Resolved', count: resolvedIssues, color: '#22c55e' },
+    { name: 'Open', count: openIssues },
+    { name: 'In Progress', count: inProgressIssues },
+    { name: 'Resolved', count: resolvedIssues },
   ]
 
-  // Trend data (last 7 days)
   const getTrendData = () => {
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
+    return Array.from({ length: 7 }, (_, i) => {
       const date = new Date()
       date.setDate(date.getDate() - (6 - i))
-      return date.toISOString().split('T')[0]
+      const dateStr = date.toISOString().split('T')[0]
+      return {
+        date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        reported: issues.filter(i => i.created_at.split('T')[0] === dateStr).length,
+        resolved: issues.filter(i => i.resolved_at?.split('T')[0] === dateStr).length,
+      }
     })
-
-    return last7Days.map(date => ({
-      date: new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      reported: issues.filter(i => i.created_at.split('T')[0] === date).length,
-      resolved: issues.filter(i => i.resolved_at?.split('T')[0] === date).length,
-    }))
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-[#0078D4]" />
-      </div>
-    )
-  }
+  if (loading) return (
+    <div style={{ minHeight: '100vh', background: '#090A0F', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ width: 36, height: 36, border: '2px solid #2A2D3D', borderTopColor: '#00E5FF', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center space-x-2">
-              <MapPin className="h-8 w-8 text-[#0078D4]" />
-              <h1 className="text-2xl font-bold text-gray-900">CampusPulse Admin</h1>
-            </Link>
-            <div className="flex space-x-4">
-              <Link href="/map" className="px-4 py-2 text-gray-700 hover:text-[#0078D4]">
-                Map View
-              </Link>
-              <Link href="/feed" className="px-4 py-2 text-gray-700 hover:text-[#0078D4]">
-                Feed
-              </Link>
+    <div style={{ background: '#090A0F', minHeight: '100vh', padding: '32px 1.5rem 60px' }}>
+      <div style={{ maxWidth: 1280, margin: '0 auto' }}>
+
+        {/* Page header */}
+        <div style={{ marginBottom: 32 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+            <div style={{
+              width: 34, height: 34, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)',
+            }}>
+              <Shield size={16} color="#8B5CF6" />
+            </div>
+            <div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#F1F2F7', margin: 0, fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.02em' }}>
+                Admin Dashboard
+              </h1>
             </div>
           </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <StatCard
-            icon={<AlertCircle className="h-8 w-8" />}
-            title="Total Issues"
-            value={totalIssues}
-            color="blue"
-          />
-          <StatCard
-            icon={<Clock className="h-8 w-8" />}
-            title="Open"
-            value={openIssues}
-            color="red"
-          />
-          <StatCard
-            icon={<TrendingUp className="h-8 w-8" />}
-            title="In Progress"
-            value={inProgressIssues}
-            color="yellow"
-          />
-          <StatCard
-            icon={<CheckCircle className="h-8 w-8" />}
-            title="Resolved"
-            value={resolvedIssues}
-            color="green"
-            subtitle={`${resolutionRate}% resolution rate`}
-          />
+          <p style={{ color: '#6B7280', fontSize: '0.85rem', margin: 0 }}>
+            Campus issue management · {totalIssues} total issues tracked
+          </p>
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          {/* Status Distribution */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Status Distribution</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={statusData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="count" fill="#0078D4" />
+        {/* Stat cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>
+          {[
+            { icon: BarChart3, label: 'Total Issues', val: totalIssues, col: '#00E5FF', sub: null },
+            { icon: AlertCircle, label: 'Open', val: openIssues, col: '#EF4444', sub: null },
+            { icon: Clock, label: 'In Progress', val: inProgressIssues, col: '#F59E0B', sub: null },
+            { icon: CheckCircle, label: 'Resolved', val: resolvedIssues, col: '#10B981', sub: `${resolutionRate}% rate` },
+          ].map(({ icon: Icon, label, val, col, sub }) => (
+            <div key={label} style={{
+              padding: '20px 22px', borderRadius: 14,
+              background: '#12131C', border: '1px solid #2A2D3D',
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 8, marginBottom: 14,
+                background: `${col}15`, border: `1px solid ${col}35`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={18} color={col} />
+              </div>
+              <div style={{ fontSize: '2rem', fontWeight: 900, color: col, lineHeight: 1, fontFamily: "'Space Grotesk', sans-serif" }}>{val}</div>
+              <div style={{ color: '#9CA3AF', fontSize: '0.82rem', marginTop: 4 }}>{label}</div>
+              {sub && <div style={{ color: '#6B7280', fontSize: '0.75rem', marginTop: 2 }}>{sub}</div>}
+            </div>
+          ))}
+        </div>
+
+        {/* Charts grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
+          <div style={{ background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 14, padding: '20px 22px' }}>
+            <h3 style={{ color: '#F1F2F7', fontWeight: 700, fontSize: '0.95rem', margin: '0 0 20px', fontFamily: "'Space Grotesk', sans-serif" }}>
+              Status Distribution
+            </h3>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={statusData} barSize={36}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E1F2E" />
+                <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Bar dataKey="count" fill="#00E5FF" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Category Distribution */}
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Issues by Category</h3>
-            <ResponsiveContainer width="100%" height={300}>
+          <div style={{ background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 14, padding: '20px 22px' }}>
+            <h3 style={{ color: '#F1F2F7', fontWeight: 700, fontSize: '0.95rem', margin: '0 0 20px', fontFamily: "'Space Grotesk', sans-serif" }}>
+              Issues by Category
+            </h3>
+            <ResponsiveContainer width="100%" height={240}>
               <PieChart>
-                <Pie
-                  data={categoryData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
+                <Pie data={categoryData} cx="50%" cy="50%" outerRadius={90}
                   label={({ name, value }) => `${name}: ${value}`}
-                  outerRadius={100}
-                  fill="#8884d8"
+                  labelLine={{ stroke: '#353851' }}
                   dataKey="value"
                 >
-                  {categoryData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
+                  {categoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
                 </Pie>
-                <Tooltip />
+                <Tooltip content={<CustomTooltip />} />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          {/* Trend Chart */}
-          <div className="bg-white p-6 rounded-lg shadow lg:col-span-2">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">7-Day Trend</h3>
-            <ResponsiveContainer width="100%" height={300}>
+          <div style={{ background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 14, padding: '20px 22px', gridColumn: 'span 2' }}>
+            <h3 style={{ color: '#F1F2F7', fontWeight: 700, fontSize: '0.95rem', margin: '0 0 20px', fontFamily: "'Space Grotesk', sans-serif" }}>
+              7-Day Activity Trend
+            </h3>
+            <ResponsiveContainer width="100%" height={220}>
               <LineChart data={getTrendData()}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="reported" stroke="#ef4444" name="Reported" />
-                <Line type="monotone" dataKey="resolved" stroke="#22c55e" name="Resolved" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#1E1F2E" />
+                <XAxis dataKey="date" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend wrapperStyle={{ color: '#9CA3AF', fontSize: '0.8rem' }} />
+                <Line type="monotone" dataKey="reported" stroke="#EF4444" name="Reported" strokeWidth={2} dot={{ fill: '#EF4444', r: 4 }} />
+                <Line type="monotone" dataKey="resolved" stroke="#10B981" name="Resolved" strokeWidth={2} dot={{ fill: '#10B981', r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </div>
 
-        {/* Issues List */}
-        <div className="bg-white rounded-lg shadow">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-xl font-semibold text-gray-900">All Issues</h3>
+        {/* Issues table */}
+        <div style={{ background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 14, overflow: 'hidden' }}>
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid #1E1F2E', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <h3 style={{ color: '#F1F2F7', fontWeight: 700, fontSize: '0.95rem', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>All Issues</h3>
+            <span style={{ color: '#6B7280', fontSize: '0.8rem' }}>{issues.length} entries</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Title</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Category</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Upvotes</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
+                  {['Title', 'Category', 'Status', 'Upvotes', 'Date', 'Action'].map(h => (
+                    <th key={h} style={{
+                      padding: '12px 20px', textAlign: 'left',
+                      color: '#6B7280', fontSize: '0.72rem', fontWeight: 600, letterSpacing: '0.06em',
+                      textTransform: 'uppercase', background: '#0D0E18', whiteSpace: 'nowrap',
+                    }}>{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {issues.map((issue) => (
-                  <tr key={issue.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 text-sm text-gray-900">{issue.title}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600 capitalize">{issue.category}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        issue.status === 'open' ? 'bg-red-100 text-red-800' :
-                        issue.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                        'bg-green-100 text-green-800'
-                      }`}>
-                        {issue.status.replace('_', ' ').toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600">👍 {issue.upvotes}</td>
-                    <td className="px-6 py-4 text-sm text-gray-600">
-                      {new Date(issue.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => {
-                          setSelectedIssue(issue)
-                          setNewStatus(issue.status)
-                        }}
-                        className="text-[#0078D4] hover:text-blue-700 text-sm font-medium"
-                      >
-                        Manage
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+              <tbody>
+                {issues.map((issue, idx) => {
+                  const st = STATUS_STYLES[issue.status] || STATUS_STYLES.open
+                  return (
+                    <tr key={issue.id} style={{
+                      borderTop: '1px solid #1A1B28',
+                      transition: 'background 0.15s',
+                    }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#1A1B28'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '14px 20px', color: '#F1F2F7', fontSize: '0.875rem', fontWeight: 500, maxWidth: 240 }}>
+                        <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{issue.title}</div>
+                      </td>
+                      <td style={{ padding: '14px 20px', color: '#9CA3AF', fontSize: '0.82rem', textTransform: 'capitalize' }}>{issue.category}</td>
+                      <td style={{ padding: '14px 20px' }}>
+                        <span style={{
+                          padding: '3px 10px', borderRadius: 100, fontSize: '0.7rem', fontWeight: 600,
+                          letterSpacing: '0.04em',
+                          background: st.bg, color: st.color, border: `1px solid ${st.border}`,
+                        }}>{st.label}</span>
+                      </td>
+                      <td style={{ padding: '14px 20px', color: '#9CA3AF', fontSize: '0.82rem' }}>👍 {issue.upvotes}</td>
+                      <td style={{ padding: '14px 20px', color: '#6B7280', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        {new Date(issue.created_at).toLocaleDateString()}
+                      </td>
+                      <td style={{ padding: '14px 20px' }}>
+                        <button onClick={() => { setSelectedIssue(issue); setNewStatus(issue.status) }} style={{
+                          padding: '5px 14px', borderRadius: 6, cursor: 'pointer',
+                          background: 'rgba(0,229,255,0.08)', border: '1px solid rgba(0,229,255,0.25)',
+                          color: '#00E5FF', fontSize: '0.78rem', fontWeight: 600,
+                          transition: 'all 0.2s',
+                        }}>
+                          Manage
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      {/* Update Status Modal */}
+      {/* Manage Modal */}
       {selectedIssue && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <h3 className="text-2xl font-bold text-gray-900 mb-4">Manage Issue</h3>
-              
-              <div className="space-y-4">
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem',
+        }}>
+          <div style={{
+            background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 20,
+            width: '100%', maxWidth: 580, maxHeight: '90vh', overflowY: 'auto',
+            padding: '28px',
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+              <h3 style={{ color: '#F1F2F7', fontWeight: 800, fontSize: '1.2rem', margin: 0, fontFamily: "'Space Grotesk', sans-serif" }}>
+                Manage Issue
+              </h3>
+              <button onClick={() => { setSelectedIssue(null); setNewStatus(''); setAfterImage(null) }} style={{
+                width: 32, height: 32, borderRadius: 8, border: '1px solid #2A2D3D',
+                background: '#1E1F2E', color: '#6B7280', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <X size={15} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={{ padding: '16px', background: '#0D0E18', borderRadius: 10, border: '1px solid #1E1F2E' }}>
+                <h4 style={{ color: '#F1F2F7', fontWeight: 600, margin: '0 0 6px', fontSize: '0.95rem' }}>{selectedIssue.title}</h4>
+                <p style={{ color: '#9CA3AF', fontSize: '0.85rem', margin: 0, lineHeight: 1.6 }}>{selectedIssue.description}</p>
+              </div>
+
+              {selectedIssue.before_image_url && (
                 <div>
-                  <h4 className="font-semibold text-gray-900 mb-2">{selectedIssue.title}</h4>
-                  <p className="text-gray-600 text-sm">{selectedIssue.description}</p>
+                  <div style={{ color: '#6B7280', fontSize: '0.75rem', marginBottom: 8, fontWeight: 600, letterSpacing: '0.05em' }}>BEFORE IMAGE</div>
+                  <img src={selectedIssue.before_image_url} alt="Before" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 10, border: '1px solid #2A2D3D' }} />
                 </div>
+              )}
 
-                {selectedIssue.before_image_url && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2">Before Image</h4>
-                    <img
-                      src={selectedIssue.before_image_url}
-                      alt="Before"
-                      className="w-full h-48 object-cover rounded-lg"
-                    />
-                  </div>
-                )}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
+                  UPDATE STATUS
+                </label>
+                <select value={newStatus} onChange={e => setNewStatus(e.target.value)} style={{
+                  width: '100%', padding: '11px 14px', background: '#12131C',
+                  border: '1px solid #2A2D3D', borderRadius: 10, color: '#F1F2F7',
+                  fontSize: '0.9rem', outline: 'none', cursor: 'pointer',
+                }}>
+                  <option value="open">Open</option>
+                  <option value="in_progress">In Progress</option>
+                  <option value="resolved">Resolved</option>
+                </select>
+              </div>
 
+              {newStatus === 'resolved' && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Update Status
+                  <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
+                    AFTER IMAGE (OPTIONAL)
                   </label>
-                  <select
-                    value={newStatus}
-                    onChange={(e) => setNewStatus(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0078D4]"
-                  >
-                    <option value="open">Open</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="resolved">Resolved</option>
-                  </select>
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px',
+                    background: '#1E1F2E', border: '1px dashed #353851', borderRadius: 10,
+                    cursor: 'pointer', color: '#6B7280', fontSize: '0.875rem',
+                  }}>
+                    <Upload size={14} />
+                    {afterImage ? afterImage.name : 'Upload after-photo to show resolution'}
+                    <input type="file" accept="image/*" onChange={e => setAfterImage(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+                  </label>
                 </div>
+              )}
 
-                {newStatus === 'resolved' && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Upload After Image (Optional)
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setAfterImage(e.target.files?.[0] || null)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                )}
-
-                <div className="flex space-x-4">
-                  <button
-                    onClick={handleStatusUpdate}
-                    disabled={updatingStatus}
-                    className="flex-1 py-3 bg-[#0078D4] text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    {updatingStatus ? 'Updating...' : 'Update Status'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedIssue(null)
-                      setNewStatus('')
-                      setAfterImage(null)
-                    }}
-                    className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300"
-                  >
-                    Cancel
-                  </button>
-                </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={handleStatusUpdate} disabled={updatingStatus} style={{
+                  flex: 1, padding: '12px', borderRadius: 10, border: 'none',
+                  background: updatingStatus ? '#1E1F2E' : '#00E5FF',
+                  color: updatingStatus ? '#6B7280' : '#090A0F',
+                  fontWeight: 700, fontSize: '0.9rem', cursor: updatingStatus ? 'not-allowed' : 'pointer',
+                }}>
+                  {updatingStatus ? 'Updating...' : 'Update Status'}
+                </button>
+                <button onClick={() => { setSelectedIssue(null); setNewStatus(''); setAfterImage(null) }} style={{
+                  padding: '12px 24px', borderRadius: 10,
+                  background: '#1E1F2E', border: '1px solid #2A2D3D',
+                  color: '#9CA3AF', fontWeight: 600, cursor: 'pointer',
+                }}>
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
-    </div>
-  )
-}
 
-function StatCard({ icon, title, value, color, subtitle }: any) {
-  const colorClasses = {
-    blue: 'text-blue-600 bg-blue-100',
-    red: 'text-red-600 bg-red-100',
-    yellow: 'text-yellow-600 bg-yellow-100',
-    green: 'text-green-600 bg-green-100',
-  }
-
-  return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <div className={`inline-flex p-3 rounded-lg ${colorClasses[color as keyof typeof colorClasses]} mb-4`}>
-        {icon}
-      </div>
-      <div className="text-3xl font-bold text-gray-900">{value}</div>
-      <div className="text-sm text-gray-600 mt-1">{title}</div>
-      {subtitle && <div className="text-xs text-gray-500 mt-1">{subtitle}</div>}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        select option { background: #1E1F2E; color: #F1F2F7; }
+      `}</style>
     </div>
   )
 }

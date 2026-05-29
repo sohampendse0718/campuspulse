@@ -1,12 +1,5 @@
-import React from 'react'
-import Home from '../../components/Spline'
+import { redirect } from 'next/navigation'
 
-const page = () => {
-  return (
-    <div>
-        <Home />
-    </div>
-  )
+export default function SplinePage() {
+  redirect('/')
 }
-
-export default page

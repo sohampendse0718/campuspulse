@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MapPin } from 'lucide-react'
-import { motion } from 'framer-motion'
+import { MapPin, Mail, Lock, AlertCircle, ArrowRight, Zap } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -20,13 +19,9 @@ export default function LoginPage() {
     setError('')
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
 
-      // Fetch user profile to check role
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
@@ -48,175 +43,181 @@ export default function LoginPage() {
   }
 
   return (
-    <motion.div
-      className="min-h-screen flex flex-col justify-center items-center relative overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 1.2 }}
-    >
-      {/* Animated gradient background */}
-      <motion.div
-        className="absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(135deg, #E0F2FE 0%, #BAE6FD 25%, #C7D2FE 50%, #FDE68A 75%, #E0F2FE 100%)',
-          backgroundSize: '400% 400%',
-        }}
-        animate={{
-          backgroundPosition: ['0% 50%', '100% 50%', '0% 50%'],
-        }}
-        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
-      />
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: '#090A0F', padding: '2rem 1rem', position: 'relative',
+    }}>
+      {/* Grid background */}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none',
+        backgroundImage: `linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px)`,
+        backgroundSize: '40px 40px',
+      }} />
+      {/* Glow blobs */}
+      <div style={{ position: 'fixed', top: '20%', left: '15%', width: 400, height: 400, background: 'radial-gradient(circle, #00E5FF06, transparent 70%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'fixed', bottom: '20%', right: '15%', width: 400, height: 400, background: 'radial-gradient(circle, #8B5CF606, transparent 70%)', pointerEvents: 'none' }} />
 
-      {/* Floating background icons */}
-      <motion.div
-        className="absolute top-16 left-16 text-[#0078D4]/15"
-        animate={{ y: [0, -25, 0], rotate: [0, 10, -10, 0] }}
-        transition={{ duration: 7, repeat: Infinity }}
-      >
-        <MapPin size={100} />
-      </motion.div>
-      <motion.div
-        className="absolute bottom-20 right-20 text-[#0078D4]/15"
-        animate={{ y: [0, 25, 0], rotate: [0, -10, 10, 0] }}
-        transition={{ duration: 8, repeat: Infinity }}
-      >
-        <MapPin size={120} />
-      </motion.div>
-
-      {/* Login Card */}
-      <motion.div
-        className="relative z-10 bg-white/60 backdrop-blur-lg shadow-2xl border border-white/30 rounded-2xl p-8 w-[90%] sm:w-[400px] text-center"
-        initial={{ y: 30, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ type: 'spring', duration: 0.8 }}
-      >
+      {/* Card */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        width: '100%', maxWidth: 440,
+        background: 'rgba(18, 19, 28, 0.95)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid #2A2D3D',
+        borderRadius: 20,
+        padding: '40px 36px',
+      }}>
         {/* Logo */}
-        <motion.div
-          className="flex justify-center items-center space-x-2 mb-4"
-          whileHover={{ scale: 1.05 }}
-        >
-          <motion.div
-            animate={{
-              rotate: [0, 5, -5, 0],
-              scale: [1, 1.1, 1],
-            }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
-            <MapPin className="h-10 w-10 text-[#0078D4] drop-shadow-md" />
-          </motion.div>
-          <motion.h1
-            className="text-3xl font-extrabold text-gray-800"
-            animate={{ opacity: [1, 0.7, 1] }}
-            transition={{ duration: 3, repeat: Infinity }}
-          >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: 'linear-gradient(135deg, #00E5FF20, #8B5CF630)',
+            border: '1px solid #00E5FF50',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            boxShadow: '0 0 15px #00E5FF20',
+          }}>
+            <MapPin size={18} color="#00E5FF" />
+          </div>
+          <span style={{
+            fontSize: '1.1rem', fontWeight: 700,
+            background: 'linear-gradient(135deg, #00E5FF, #8B5CF6)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}>
             CampusPulse
-          </motion.h1>
-        </motion.div>
+          </span>
+        </div>
 
-        <motion.h2
-          className="text-2xl font-semibold text-gray-900"
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          Sign in to your account
-        </motion.h2>
-        <motion.p
-          className="text-sm text-gray-600 mt-1"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          Welcome back 👋 Let’s make our campus better together.
-        </motion.p>
+        {/* Heading */}
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#F1F2F7', margin: '0 0 6px', fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.02em' }}>
+            Welcome back
+          </h1>
+          <p style={{ color: '#6B7280', fontSize: '0.875rem', margin: 0 }}>
+            Sign in to your account to continue
+          </p>
+        </div>
 
-        <motion.form
-          onSubmit={handleLogin}
-          className="mt-6 space-y-5 text-left"
-          initial="hidden"
-          animate="visible"
-          variants={{
-            hidden: {},
-            visible: { transition: { staggerChildren: 0.15 } },
-          }}
-        >
-          {error && (
-            <motion.div
-              className="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              {error}
-            </motion.div>
-          )}
+        {/* Error */}
+        {error && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#FCA5A5', borderRadius: 10, padding: '12px 14px',
+            fontSize: '0.85rem', marginBottom: 20,
+          }}>
+            <AlertCircle size={14} style={{ flexShrink: 0 }} />
+            {error}
+          </div>
+        )}
 
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, y: 10 },
-              visible: { opacity: 1, y: 0 },
-            }}
-          >
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email Address
+        {/* Form */}
+        <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div>
+            <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>
+              EMAIL ADDRESS
             </label>
-            <motion.input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              whileFocus={{ scale: 1.02, boxShadow: '0 0 10px rgba(0,120,212,0.25)' }}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-[#0078D4] focus:border-[#0078D4]"
-            />
-          </motion.div>
+            <div style={{ position: 'relative' }}>
+              <Mail size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={{
+                  width: '100%', padding: '12px 14px 12px 40px',
+                  background: '#12131C', border: '1px solid #2A2D3D',
+                  borderRadius: 10, color: '#F1F2F7', fontSize: '0.9rem',
+                  outline: 'none', boxSizing: 'border-box',
+                  transition: 'border-color 0.2s ease',
+                }}
+                onFocus={e => e.target.style.borderColor = '#00E5FF'}
+                onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+              />
+            </div>
+          </div>
 
-          <motion.div
-            variants={{
-              hidden: { opacity: 0, y: 10 },
-              visible: { opacity: 1, y: 0 },
-            }}
-          >
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
+          <div>
+            <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>
+              PASSWORD
             </label>
-            <motion.input
-              id="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              whileFocus={{ scale: 1.02, boxShadow: '0 0 10px rgba(0,120,212,0.25)' }}
-              className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-[#0078D4] focus:border-[#0078D4]"
-            />
-          </motion.div>
+            <div style={{ position: 'relative' }}>
+              <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+              <input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                placeholder="••••••••"
+                style={{
+                  width: '100%', padding: '12px 14px 12px 40px',
+                  background: '#12131C', border: '1px solid #2A2D3D',
+                  borderRadius: 10, color: '#F1F2F7', fontSize: '0.9rem',
+                  outline: 'none', boxSizing: 'border-box',
+                  transition: 'border-color 0.2s ease',
+                }}
+                onFocus={e => e.target.style.borderColor = '#00E5FF'}
+                onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+              />
+            </div>
+          </div>
 
-          <motion.button
+          <button
             type="submit"
             disabled={loading}
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.95 }}
-            className="w-full py-3 rounded-lg bg-[#0078D4] text-white font-semibold hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition disabled:opacity-50"
+            style={{
+              width: '100%', padding: '13px',
+              background: loading ? '#1E1F2E' : '#00E5FF',
+              color: loading ? '#6B7280' : '#090A0F',
+              border: 'none', borderRadius: 10,
+              fontWeight: 700, fontSize: '0.95rem',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              transition: 'all 0.2s ease',
+              marginTop: 4,
+            }}
+            onMouseEnter={e => {
+              if (!loading) {
+                (e.currentTarget as HTMLElement).style.background = '#00B8CC'
+                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 25px rgba(0,229,255,0.35)'
+              }
+            }}
+            onMouseLeave={e => {
+              if (!loading) {
+                (e.currentTarget as HTMLElement).style.background = '#00E5FF'
+                ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
+              }
+            }}
           >
-            {loading ? 'Signing in...' : 'Sign in'}
-          </motion.button>
-        </motion.form>
+            {loading ? (
+              <>
+                <span style={{ width: 16, height: 16, border: '2px solid #6B7280', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                Signing in...
+              </>
+            ) : (
+              <>Sign In <ArrowRight size={16} /></>
+            )}
+          </button>
+        </form>
 
-        <motion.div
-          className="mt-8 text-sm text-gray-600"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1.1 }}
-        >
-          <span>Don't have an account? </span>
-          <Link
-            href="/signup"
-            className="text-[#0078D4] font-medium hover:underline"
-          >
-            Create one
+        {/* Divider */}
+        <div style={{ margin: '24px 0', borderTop: '1px solid #2A2D3D' }} />
+
+        <p style={{ textAlign: 'center', color: '#6B7280', fontSize: '0.875rem' }}>
+          Don&apos;t have an account?{' '}
+          <Link href="/signup" style={{ color: '#00E5FF', fontWeight: 600, textDecoration: 'none' }}>
+            Create one <Zap size={12} style={{ display: 'inline', verticalAlign: 'middle' }} />
           </Link>
-        </motion.div>
-      </motion.div>
-    </motion.div>
+        </p>
+      </div>
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input::placeholder { color: #4B5563; }
+      `}</style>
+    </div>
   )
 }

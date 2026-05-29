@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MapPin } from 'lucide-react'
+import { MapPin, Mail, Lock, User, AlertCircle, ArrowRight, Shield, GraduationCap } from 'lucide-react'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -25,14 +25,11 @@ export default function SignupPage() {
         email,
         password,
         options: {
-          data: {
-            full_name: fullName,
-            role: role,
-          }
+          data: { full_name: fullName, role: role }
         }
       })
       if (error) throw error
-      alert('Signup successful! Please check your email for confirmation if required, and then sign in.')
+      alert('Signup successful! Please check your email for confirmation if required, then sign in.')
       router.push('/login')
     } catch (error: any) {
       setError(error.message)
@@ -41,133 +38,213 @@ export default function SignupPage() {
     }
   }
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '12px 14px 12px 40px',
+    background: '#12131C', border: '1px solid #2A2D3D',
+    borderRadius: 10, color: '#F1F2F7', fontSize: '0.9rem',
+    outline: 'none', boxSizing: 'border-box',
+    transition: 'border-color 0.2s ease',
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col justify-center py-12 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="sm:mx-auto sm:w-full sm:max-w-md">
-        <Link href="/" className="flex justify-center items-center space-x-2">
-          <MapPin className="h-10 w-10 text-[#0078D4]" />
-          <h1 className="text-3xl font-bold text-gray-900">CampusPulse</h1>
-        </Link>
-        <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
-          Create your account
-        </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Join the community and start making a difference
+    <div style={{
+      minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: '#090A0F', padding: '2rem 1rem', position: 'relative',
+    }}>
+      {/* Grid background */}
+      <div style={{
+        position: 'fixed', inset: 0, pointerEvents: 'none',
+        backgroundImage: `linear-gradient(rgba(0, 229, 255, 0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 229, 255, 0.025) 1px, transparent 1px)`,
+        backgroundSize: '40px 40px',
+      }} />
+      <div style={{ position: 'fixed', top: '10%', right: '10%', width: 400, height: 400, background: 'radial-gradient(circle, #8B5CF606, transparent 70%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'fixed', bottom: '10%', left: '10%', width: 400, height: 400, background: 'radial-gradient(circle, #00E5FF06, transparent 70%)', pointerEvents: 'none' }} />
+
+      {/* Card */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        width: '100%', maxWidth: 460,
+        background: 'rgba(18, 19, 28, 0.95)',
+        backdropFilter: 'blur(20px)',
+        border: '1px solid #2A2D3D',
+        borderRadius: 20, padding: '40px 36px',
+      }}>
+        {/* Logo */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 32 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: 'linear-gradient(135deg, #8B5CF620, #00E5FF20)',
+            border: '1px solid #8B5CF650',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <MapPin size={18} color="#8B5CF6" />
+          </div>
+          <span style={{
+            fontSize: '1.1rem', fontWeight: 700,
+            background: 'linear-gradient(135deg, #00E5FF, #8B5CF6)',
+            WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+            fontFamily: "'Space Grotesk', sans-serif",
+          }}>
+            CampusPulse
+          </span>
+        </div>
+
+        {/* Heading */}
+        <div style={{ marginBottom: 28 }}>
+          <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#F1F2F7', margin: '0 0 6px', fontFamily: "'Space Grotesk', sans-serif", letterSpacing: '-0.02em' }}>
+            Create your account
+          </h1>
+          <p style={{ color: '#6B7280', fontSize: '0.875rem', margin: 0 }}>
+            Join the GEC community — report and track campus issues
+          </p>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: '#FCA5A5', borderRadius: 10, padding: '12px 14px',
+            fontSize: '0.85rem', marginBottom: 20,
+          }}>
+            <AlertCircle size={14} style={{ flexShrink: 0 }} />
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSignup} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          {/* Full Name */}
+          <div>
+            <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>
+              FULL NAME
+            </label>
+            <div style={{ position: 'relative' }}>
+              <User size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+              <input
+                id="fullName" type="text" required
+                value={fullName} onChange={e => setFullName(e.target.value)}
+                placeholder="John Doe"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = '#8B5CF6'}
+                onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>
+              EMAIL ADDRESS
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Mail size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+              <input
+                id="email" type="email" required
+                value={email} onChange={e => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = '#8B5CF6'}
+                onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+              />
+            </div>
+          </div>
+
+          {/* Password */}
+          <div>
+            <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>
+              PASSWORD
+            </label>
+            <div style={{ position: 'relative' }}>
+              <Lock size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+              <input
+                id="password" type="password" required minLength={6}
+                value={password} onChange={e => setPassword(e.target.value)}
+                placeholder="Min. 6 characters"
+                style={inputStyle}
+                onFocus={e => e.target.style.borderColor = '#8B5CF6'}
+                onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+              />
+            </div>
+          </div>
+
+          {/* Role selector */}
+          <div>
+            <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 10, letterSpacing: '0.03em' }}>
+              I AM A
+            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              {[
+                { value: 'citizen', label: 'Student / Citizen', icon: GraduationCap },
+                { value: 'municipal_official', label: 'Admin / Official', icon: Shield },
+              ].map(({ value, label, icon: Icon }) => {
+                const active = role === value
+                return (
+                  <label key={value} style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+                    padding: '14px 12px', borderRadius: 12,
+                    background: active ? 'rgba(139, 92, 246, 0.12)' : '#12131C',
+                    border: active ? '1px solid rgba(139, 92, 246, 0.4)' : '1px solid #2A2D3D',
+                    cursor: 'pointer', transition: 'all 0.2s ease',
+                    color: active ? '#A78BFA' : '#6B7280',
+                    fontSize: '0.8rem', fontWeight: 500, textAlign: 'center',
+                  }}>
+                    <input type="radio" value={value} checked={role === value}
+                      onChange={e => setRole(e.target.value as any)}
+                      style={{ display: 'none' }}
+                    />
+                    <Icon size={18} color={active ? '#8B5CF6' : '#4B5563'} />
+                    {label}
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Submit */}
+          <button
+            type="submit" disabled={loading}
+            style={{
+              width: '100%', padding: '13px',
+              background: loading ? '#1E1F2E' : 'linear-gradient(135deg, #8B5CF6, #00E5FF)',
+              color: loading ? '#6B7280' : '#090A0F',
+              border: 'none', borderRadius: 10,
+              fontWeight: 700, fontSize: '0.95rem',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              marginTop: 4,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => {
+              if (!loading) (e.currentTarget as HTMLElement).style.boxShadow = '0 0 25px rgba(139,92,246,0.4)'
+            }}
+            onMouseLeave={e => {
+              if (!loading) (e.currentTarget as HTMLElement).style.boxShadow = 'none'
+            }}
+          >
+            {loading ? (
+              <>
+                <span style={{ width: 16, height: 16, border: '2px solid #6B7280', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
+                Creating account...
+              </>
+            ) : (
+              <>Create Account <ArrowRight size={16} /></>
+            )}
+          </button>
+        </form>
+
+        <div style={{ margin: '24px 0', borderTop: '1px solid #2A2D3D' }} />
+        <p style={{ textAlign: 'center', color: '#6B7280', fontSize: '0.875rem' }}>
+          Already have an account?{' '}
+          <Link href="/login" style={{ color: '#00E5FF', fontWeight: 600, textDecoration: 'none' }}>
+            Sign in
+          </Link>
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <div className="bg-white py-8 px-4 shadow-lg sm:rounded-lg sm:px-10">
-          <form onSubmit={handleSignup} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-lg">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700">
-                Full Name
-              </label>
-              <input
-                id="fullName"
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#0078D4] focus:border-[#0078D4]"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#0078D4] focus:border-[#0078D4]"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-[#0078D4] focus:border-[#0078D4]"
-                minLength={6}
-              />
-              <p className="mt-1 text-xs text-gray-500">Must be at least 6 characters</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                I am a
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="citizen"
-                    checked={role === 'citizen'}
-                    onChange={(e) => setRole(e.target.value as 'citizen')}
-                    className="h-4 w-4 text-[#0078D4] focus:ring-[#0078D4]"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Citizen</span>
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    value="municipal_official"
-                    checked={role === 'municipal_official'}
-                    onChange={(e) => setRole(e.target.value as 'municipal_official')}
-                    className="h-4 w-4 text-[#0078D4] focus:ring-[#0078D4]"
-                  />
-                  <span className="ml-2 text-sm text-gray-700">Municipal Official</span>
-                </label>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#0078D4] hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#0078D4] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Creating account...' : 'Sign up'}
-            </button>
-          </form>
-
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Already have an account?</span>
-              </div>
-            </div>
-
-            <div className="mt-6">
-              <Link
-                href="/login"
-                className="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Sign in instead
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        input::placeholder { color: #4B5563; }
+      `}</style>
     </div>
   )
 }
