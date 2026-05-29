@@ -172,7 +172,7 @@ export default function FeedPage() {
                   background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 16, overflow: 'hidden',
                 }}>
                   {/* Post header */}
-                  <div style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1E1F2E' }}>
+                  <div style={{ padding: '16px 20px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1E1F2E' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <div style={{
                         width: 38, height: 38, borderRadius: '50%',

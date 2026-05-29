@@ -259,7 +259,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Charts grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
+        <div className="mobile-flex-col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 28 }}>
           <div style={{ background: '#12131C', border: '1px solid #2A2D3D', borderRadius: 14, padding: '20px 22px' }}>
             <h3 style={{ color: '#F1F2F7', fontWeight: 700, fontSize: '0.95rem', margin: '0 0 20px', fontFamily: "'Space Grotesk', sans-serif" }}>
               Status Distribution

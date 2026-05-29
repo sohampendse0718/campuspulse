@@ -158,7 +158,7 @@ export default function Home() {
       {/* BENTO GRID - Campus Images + Stats */}
       <section style={{ position: 'relative', zIndex: 1, padding: '0 1.5rem 80px' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <div style={{
+          <div className="bento-grid" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(12, 1fr)',
             gap: 16,

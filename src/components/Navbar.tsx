@@ -99,7 +99,7 @@ export default function Navbar() {
       }}
     >
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 1.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '64px' }}>
+        <div className="nav-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '64px' }}>
           {/* Logo */}
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}>
             <div style={{
@@ -125,7 +125,7 @@ export default function Navbar() {
           </Link>
 
           {/* Nav links */}
-          <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <nav className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             {visibleLinks.map(({ href, label, icon: Icon }) => {
               const active = pathname === href
               return (
@@ -163,7 +163,7 @@ export default function Navbar() {
           </nav>
 
           {/* Auth buttons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {user ? (
               <button
                 onClick={handleLogout}

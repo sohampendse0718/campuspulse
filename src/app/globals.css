@@ -171,3 +171,55 @@ body {
   height: 1px;
   background: linear-gradient(90deg, transparent, var(--border-subtle), transparent);
 }
+
+/* --- RESPONSIVE UTILITIES --- */
+@media (max-width: 768px) {
+  /* Navbar */
+  .nav-container {
+    flex-direction: column !important;
+    height: auto !important;
+    padding: 12px 0 !important;
+    gap: 12px !important;
+  }
+  .nav-links {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+  }
+
+  /* Grid Resets */
+  .mobile-col-full {
+    grid-column: span 12 !important;
+  }
+  .mobile-flex-col {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .bento-grid {
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  
+  /* Typography */
+  .mobile-text-center {
+    text-align: center !important;
+  }
+  
+  /* Padding */
+  .mobile-p-4 {
+    padding: 16px !important;
+  }
+  .mobile-pt-100 {
+    padding-top: 100px !important;
+  }
+
+  /* Modals */
+  .mobile-modal {
+    width: 95vw !important;
+    max-height: 90vh !important;
+  }
+
+  /* Charts */
+  .mobile-chart {
+    height: 250px !important;
+  }
+}
