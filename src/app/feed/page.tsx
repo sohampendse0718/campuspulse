@@ -3,14 +3,18 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
-import { MapPin, ThumbsUp, MessageCircle, Send, Clock, User, AlertTriangle, RefreshCw } from 'lucide-react'
+import { MapPin, ThumbsUp, MessageCircle, Send, Clock, User, AlertTriangle, RefreshCw, CheckCircle2 } from 'lucide-react'
 
-type Comment = { id: string; user: string; text: string; created_at: string }
+type Comment = { id: string; user: string; text: string; role: string; created_at: string }
 type FeedIssue = {
   id: string; title: string; description: string; category: string
   status: string; address: string; before_image_url: string | null
+  after_image_url: string | null; resolved_at: string | null
   created_at: string; upvotes: number; isLiked: boolean
-  reported_by_name: string; comments: Comment[]
+  reported_by_name: string;
+  assigned_to_name: string | null;
+  assigned_to_role: string | null;
+  comments: Comment[]
 }
 
 const STATUS_STYLES: Record<string, { bg: string; color: string; border: string; label: string }> = {
@@ -20,6 +24,11 @@ const STATUS_STYLES: Record<string, { bg: string; color: string; border: string;
 }
 const CATEGORY_COLORS: Record<string, string> = {
   road: '#F59E0B', lighting: '#00E5FF', sanitation: '#10B981', water: '#3B82F6', other: '#8B5CF6'
+}
+
+const formatRole = (role: string) => {
+  if (!role) return ''
+  return role.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')
 }
 
 export default function FeedPage() {
@@ -35,17 +44,31 @@ export default function FeedPage() {
       setLoading(true)
       const { data, error } = await supabase
         .from('issues')
-        .select(`*, reported_by_profile: profiles!reported_by(full_name), comments: comments(id, text, created_at, profile: profiles(full_name))`)
+        .select(`
+          *, 
+          reported_by_profile: profiles!reported_by(full_name), 
+          assigned_to_profile: profiles!assigned_to(full_name, role),
+          comments: comments(id, text, created_at, profile: profiles(full_name, role))
+        `)
         .order('created_at', { ascending: false })
 
       if (error) throw error
       const mapped = (data || []).map((issue: any) => ({
         id: issue.id, title: issue.title, description: issue.description, category: issue.category,
-        status: issue.status, address: issue.address, before_image_url: issue.before_image_url,
+        status: issue.status, address: issue.address, 
+        before_image_url: issue.before_image_url,
+        after_image_url: issue.after_image_url,
+        resolved_at: issue.resolved_at,
         created_at: issue.created_at, upvotes: issue.upvotes || 0, isLiked: false,
         reported_by_name: issue.reported_by_profile?.full_name || 'Anonymous Student',
+        assigned_to_name: issue.assigned_to_profile?.full_name || null,
+        assigned_to_role: issue.assigned_to_profile?.role || null,
         comments: (issue.comments || []).map((c: any) => ({
-          id: c.id, user: c.profile?.full_name || 'Anonymous', text: c.text, created_at: c.created_at
+          id: c.id, 
+          user: c.profile?.full_name || 'Anonymous', 
+          role: c.profile?.role || 'student',
+          text: c.text, 
+          created_at: c.created_at
         })).sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       }))
       setIssues(mapped)
@@ -74,12 +97,13 @@ export default function FeedPage() {
       const { data: commentData, error } = await supabase
         .from('comments')
         .insert({ issue_id: issueId, user_id: user.id, text: text.trim() })
-        .select(`id, text, created_at, profile: profiles(full_name)`).single()
+        .select(`id, text, created_at, profile: profiles(full_name, role)`).single()
       if (error) throw error
       const profileData = commentData.profile as any
       const userName = (Array.isArray(profileData) ? profileData[0]?.full_name : profileData?.full_name)
+      const userRole = (Array.isArray(profileData) ? profileData[0]?.role : profileData?.role)
       setIssues(prev => prev.map(issue => issue.id === issueId
-        ? { ...issue, comments: [...issue.comments, { id: commentData.id, user: userName || 'You', text: commentData.text, created_at: commentData.created_at }] }
+        ? { ...issue, comments: [...issue.comments, { id: commentData.id, user: userName || 'You', role: userRole || 'student', text: commentData.text, created_at: commentData.created_at }] }
         : issue
       ))
       setNewCommentText(prev => ({ ...prev, [issueId]: '' }))
@@ -229,6 +253,52 @@ export default function FeedPage() {
                     </div>
                   )}
 
+                  {/* Resolution Reply (Fixed Photo & Admin details) */}
+                  {issue.status === 'resolved' && issue.after_image_url && (
+                    <div style={{
+                      margin: '0 20px 16px',
+                      padding: '16px',
+                      background: 'rgba(16, 185, 129, 0.08)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      borderRadius: 12,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                        <div style={{
+                          width: 8, height: 8, borderRadius: '50%', background: '#10B981',
+                          boxShadow: '0 0 8px #10B981',
+                        }} />
+                        <span style={{ color: '#10B981', fontWeight: 700, fontSize: '0.8rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                          Official Resolution
+                        </span>
+                        {issue.assigned_to_name && (
+                          <span style={{ color: '#9CA3AF', fontSize: '0.78rem' }}>
+                            by <strong>{issue.assigned_to_name}</strong> 
+                            <span style={{
+                              marginLeft: 6,
+                              background: 'rgba(16, 185, 129, 0.15)', 
+                              color: '#10B981', 
+                              border: '1px solid rgba(16, 185, 129, 0.3)', 
+                              padding: '2px 6px', 
+                              borderRadius: 4, 
+                              fontSize: '0.65rem', 
+                              fontWeight: 700, 
+                              textTransform: 'uppercase'
+                            }}>
+                              {formatRole(issue.assigned_to_role || '')}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                      
+                      <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                        <div style={{ padding: '6px 10px', background: '#10B98120', borderBottom: '1px solid rgba(16, 185, 129, 0.2)', color: '#6EE7B7', fontSize: '0.75rem', fontWeight: 600 }}>
+                          AFTER / FIXED PHOTO
+                        </div>
+                        <img src={issue.after_image_url} alt="Resolved issue" style={{ width: '100%', height: 220, objectFit: 'cover', display: 'block' }} />
+                      </div>
+                    </div>
+                  )}
+
                   {/* Actions */}
                   <div style={{ padding: '12px 20px', borderTop: '1px solid #1E1F2E', display: 'flex', alignItems: 'center', gap: 20 }}>
                     <button onClick={() => handleLike(issue.id)} style={{
@@ -256,9 +326,31 @@ export default function FeedPage() {
                             }}>
                               <User size={13} color="#6B7280" />
                             </div>
-                            <div style={{ background: '#12131C', border: '1px solid #1E1F2E', borderRadius: 10, padding: '8px 12px', flex: 1 }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                                <span style={{ color: '#F1F2F7', fontWeight: 600, fontSize: '0.78rem' }}>{comment.user}</span>
+                            {/* Comment bubble */}
+                            <div style={{ 
+                              background: comment.role !== 'student' ? 'rgba(16, 185, 129, 0.06)' : '#12131C', 
+                              border: comment.role !== 'student' ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid #1E1F2E', 
+                              borderRadius: 10, padding: '8px 12px', flex: 1 
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <span style={{ color: '#F1F2F7', fontWeight: 600, fontSize: '0.78rem' }}>{comment.user}</span>
+                                  {comment.role !== 'student' && (
+                                    <span style={{ 
+                                      background: 'rgba(16, 185, 129, 0.15)', 
+                                      color: '#10B981', 
+                                      border: '1px solid rgba(16, 185, 129, 0.3)', 
+                                      padding: '1px 5px', 
+                                      borderRadius: 4, 
+                                      fontSize: '0.62rem', 
+                                      fontWeight: 700, 
+                                      textTransform: 'uppercase',
+                                      letterSpacing: '0.02em'
+                                    }}>
+                                      {formatRole(comment.role)}
+                                    </span>
+                                  )}
+                                </div>
                                 <span style={{ color: '#4B5563', fontSize: '0.72rem' }}>{getTimeAgo(comment.created_at)}</span>
                               </div>
                               <p style={{ color: '#9CA3AF', fontSize: '0.82rem', margin: 0, lineHeight: 1.5 }}>{comment.text}</p>
