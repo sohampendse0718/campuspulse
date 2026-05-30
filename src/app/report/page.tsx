@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { MapPin, Upload, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react'
+import { MapPin, Upload, Camera, Loader2, AlertCircle, CheckCircle2, X } from 'lucide-react'
 
 type Category = 'electrical' | 'cleaning' | 'water_leakage' | 'furniture' | 'lab_equipment' | 'wiring_projector' | 'safety' | 'other'
 
@@ -59,6 +59,70 @@ export default function ReportPage() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  const [isCameraActive, setIsCameraActive] = useState(false)
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null)
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+
+  useEffect(() => {
+    if (isCameraActive && cameraStream && videoRef.current) {
+      videoRef.current.srcObject = cameraStream
+    }
+  }, [isCameraActive, cameraStream])
+
+  useEffect(() => {
+    return () => {
+      if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop())
+      }
+    }
+  }, [cameraStream])
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false
+      })
+      setCameraStream(stream)
+      setIsCameraActive(true)
+    } catch (err: any) {
+      alert('Error accessing camera: ' + err.message)
+    }
+  }
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach(track => track.stop())
+      setCameraStream(null)
+    }
+    setIsCameraActive(false)
+  }
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const video = videoRef.current
+      const canvas = document.createElement('canvas')
+      canvas.width = video.videoWidth || 640
+      canvas.height = video.videoHeight || 480
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], `capture_${Date.now()}.jpg`, { type: 'image/jpeg' })
+            setImageFile(file)
+            const reader = new FileReader()
+            reader.onloadend = () => {
+              setImagePreview(reader.result as string)
+              stopCamera()
+            }
+            reader.readAsDataURL(file)
+          }
+        }, 'image/jpeg')
+      }
+    }
+  }
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -283,23 +347,72 @@ export default function ReportPage() {
                 )}
               </div>
 
-              {/* Image Upload */}
+              {/* Image Upload / Capture */}
               <div>
                 <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.78rem', fontWeight: 600, marginBottom: 8, letterSpacing: '0.04em' }}>
                   PHOTO (OPTIONAL)
                 </label>
-                <label style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
-                  background: '#1E1F2E', border: '1px dashed #353851', borderRadius: 10,
-                  cursor: 'pointer', color: '#6B7280', fontSize: '0.875rem',
-                  transition: 'all 0.2s ease',
-                }}>
-                  <Upload size={16} />
-                  {imageFile ? imageFile.name : 'Click to upload before-photo'}
-                  <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
-                </label>
-                {imagePreview && (
-                  <div style={{ position: 'relative', marginTop: 10 }}>
+                
+                {isCameraActive ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <video 
+                      ref={videoRef} 
+                      autoPlay 
+                      playsInline 
+                      style={{ width: '100%', height: 240, objectFit: 'cover', borderRadius: 10, border: '1px solid #2A2D3D', background: '#000' }} 
+                    />
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <button 
+                        type="button" 
+                        onClick={capturePhoto} 
+                        style={{
+                          flex: 1, padding: '10px', background: '#10B981', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        Capture Photo
+                      </button>
+                      <button 
+                        type="button" 
+                        onClick={stopCamera} 
+                        style={{
+                          padding: '10px 16px', background: '#1E1F2E', color: '#9CA3AF', border: '1px solid #2A2D3D', borderRadius: 8, fontWeight: 600, cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : !imagePreview ? (
+                  <div style={{ display: 'flex', gap: 12 }}>
+                    {/* Upload from device */}
+                    <label style={{
+                      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '16px',
+                      background: '#1E1F2E', border: '1px dashed #353851', borderRadius: 10,
+                      cursor: 'pointer', color: '#9CA3AF', fontSize: '0.8rem',
+                      transition: 'all 0.2s ease', textAlign: 'center'
+                    }}>
+                      <Upload size={20} color="#00E5FF" />
+                      <span>Upload Photo</span>
+                      <input type="file" accept="image/*" onChange={handleImageChange} style={{ display: 'none' }} />
+                    </label>
+
+                    {/* Capture from camera */}
+                    <button 
+                      type="button"
+                      onClick={startCamera}
+                      style={{
+                        flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '16px',
+                        background: '#1E1F2E', border: '1px dashed #353851', borderRadius: 10,
+                        cursor: 'pointer', color: '#9CA3AF', fontSize: '0.8rem',
+                        transition: 'all 0.2s ease', textAlign: 'center'
+                      }}
+                    >
+                      <Camera size={20} color="#10B981" />
+                      <span>Take Photo</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ position: 'relative' }}>
                     <img src={imagePreview} alt="Preview" style={{ width: '100%', height: 200, objectFit: 'cover', borderRadius: 10, border: '1px solid #2A2D3D', display: 'block' }} />
                     <button type="button" onClick={() => { setImagePreview(null); setImageFile(null) }} style={{
                       position: 'absolute', top: 8, right: 8, width: 28, height: 28, borderRadius: '50%',
