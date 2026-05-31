@@ -3,9 +3,49 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { MapPin, Bell, Users, TrendingUp, ArrowRight, Zap, Shield, BarChart3 } from 'lucide-react'
+import { supabase } from '@/lib/supabase'
+
+function AnimatedNumber({ value, duration = 1200 }: { value: number; duration?: number }) {
+  const [displayValue, setDisplayValue] = useState(0)
+
+  useEffect(() => {
+    let start = 0
+    const end = value
+    if (start === end) {
+      setDisplayValue(end)
+      return
+    }
+
+    const totalSteps = 60
+    const stepTime = Math.max(duration / totalSteps, 16) // ~60fps frame rate
+    let currentStep = 0
+
+    const timer = setInterval(() => {
+      currentStep++
+      const progress = currentStep / totalSteps
+      const easeProgress = progress * (2 - progress) // Ease out quad
+      const currentValue = Math.round(easeProgress * end)
+
+      if (currentStep >= totalSteps) {
+        setDisplayValue(end)
+        clearInterval(timer)
+      } else {
+        setDisplayValue(currentValue)
+      }
+    }, stepTime)
+
+    return () => clearInterval(timer)
+  }, [value, duration])
+
+  return <>{displayValue}</>
+}
 
 export default function Home() {
   const [currentImg, setCurrentImg] = useState(0)
+  const [stats, setStats] = useState({
+    resolutionRate: 0,
+    studentCount: 0,
+  })
   const images = ['/images/1.png', '/images/2.png', '/images/3.png']
 
   useEffect(() => {
@@ -14,6 +54,48 @@ export default function Home() {
     }, 6500)
     return () => clearInterval(timer)
   }, [images.length])
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const { count: totalCount } = await supabase
+          .from('issues')
+          .select('*', { count: 'exact', head: true })
+          
+        const { count: resolvedCount } = await supabase
+          .from('issues')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'resolved')
+
+        const { count: profilesCount } = await supabase
+          .from('profiles')
+          .select('*', { count: 'exact', head: true })
+
+        const newStats: { resolutionRate?: number; studentCount?: number } = {}
+        if (totalCount !== null && resolvedCount !== null && totalCount !== undefined && resolvedCount !== undefined) {
+          newStats.resolutionRate = totalCount > 0 ? Math.round((resolvedCount / totalCount) * 100) : 100
+        }
+        if (profilesCount !== null && profilesCount !== undefined) {
+          newStats.studentCount = profilesCount
+        }
+
+        setStats(prev => ({ ...prev, ...newStats }))
+      } catch (err) {
+        console.error('Error fetching landing page stats:', err)
+      }
+    }
+
+    fetchStats()
+
+    const channel = supabase.channel('landing-stats-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'issues' }, () => { fetchStats() })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, () => { fetchStats() })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [])
 
   return (
     <div style={{ background: '#090A0F', minHeight: '100vh' }}>
@@ -245,7 +327,7 @@ export default function Home() {
                 <BarChart3 size={20} color="#00E5FF" />
               </div>
               <div>
-                <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#00E5FF', lineHeight: 1, fontFamily: "'Space Grotesk', sans-serif" }}>85%</div>
+                <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#00E5FF', lineHeight: 1, fontFamily: "'Space Grotesk', sans-serif" }}><AnimatedNumber value={stats.resolutionRate} />%</div>
                 <div style={{ color: '#9CA3AF', fontSize: '0.82rem', marginTop: 4 }}>Resolution Rate</div>
               </div>
             </div>
@@ -268,7 +350,7 @@ export default function Home() {
                 <Users size={20} color="#8B5CF6" />
               </div>
               <div>
-                <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#A78BFA', lineHeight: 1, fontFamily: "'Space Grotesk', sans-serif" }}>500+</div>
+                <div style={{ fontSize: '2.5rem', fontWeight: 900, color: '#A78BFA', lineHeight: 1, fontFamily: "'Space Grotesk', sans-serif" }}><AnimatedNumber value={stats.studentCount} /></div>
                 <div style={{ color: '#9CA3AF', fontSize: '0.82rem', marginTop: 4 }}>Campus Students</div>
               </div>
             </div>
