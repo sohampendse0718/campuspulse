@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { MapPin, Mail, Lock, User, AlertCircle, ArrowRight, Shield, GraduationCap } from 'lucide-react'
+import { MapPin, Mail, Lock, User, AlertCircle, ArrowRight, Shield, GraduationCap, BookOpen, Calendar, Hash } from 'lucide-react'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -12,6 +12,9 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [role, setRole] = useState<'student' | 'ground_staff'>('student')
+  const [dept, setDept] = useState('Computer')
+  const [year, setYear] = useState('1st Year')
+  const [rollNo, setRollNo] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -25,7 +28,13 @@ export default function SignupPage() {
         email,
         password,
         options: {
-          data: { full_name: fullName, role: role }
+          data: {
+            full_name: fullName,
+            role: role,
+            dept: role === 'student' ? dept : null,
+            year: role === 'student' ? year : null,
+            roll_no: role === 'student' ? rollNo : null
+          }
         }
       })
       if (error) throw error
@@ -123,7 +132,7 @@ export default function SignupPage() {
               <input
                 id="fullName" type="text" required
                 value={fullName} onChange={e => setFullName(e.target.value)}
-                placeholder="John Doe"
+                placeholder="Soham Pendse"
                 style={inputStyle}
                 onFocus={e => e.target.style.borderColor = '#8B5CF6'}
                 onBlur={e => e.target.style.borderColor = '#2A2D3D'}
@@ -199,6 +208,84 @@ export default function SignupPage() {
               })}
             </div>
           </div>
+
+          {/* Student Fields */}
+          {role === 'student' && (
+            <>
+              {/* Department */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>
+                  DEPARTMENT
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <BookOpen size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+                  <select
+                    id="dept"
+                    value={dept}
+                    onChange={e => setDept(e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      paddingLeft: '40px',
+                      appearance: 'none',
+                    }}
+                    onFocus={e => e.target.style.borderColor = '#8B5CF6'}
+                    onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+                  >
+                    {['Computer', 'IT', 'E&C', 'Mechanical', 'Civil', 'Mining', 'Electrical'].map(b => (
+                      <option key={b} value={b} style={{ background: '#12131C', color: '#F1F2F7' }}>{b}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Year */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>
+                  YEAR
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Calendar size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+                  <select
+                    id="year"
+                    value={year}
+                    onChange={e => setYear(e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      paddingLeft: '40px',
+                      appearance: 'none',
+                    }}
+                    onFocus={e => e.target.style.borderColor = '#8B5CF6'}
+                    onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+                  >
+                    {['1st Year', '2nd Year', '3rd Year', '4th Year'].map(y => (
+                      <option key={y} value={y} style={{ background: '#12131C', color: '#F1F2F7' }}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Roll Number */}
+              <div>
+                <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>
+                  ROLL NUMBER
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Hash size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
+                  <input
+                    id="rollNo"
+                    type="text"
+                    required
+                    value={rollNo}
+                    onChange={e => setRollNo(e.target.value)}
+                    placeholder="e.g., 24B-CO-068"
+                    style={inputStyle}
+                    onFocus={e => e.target.style.borderColor = '#8B5CF6'}
+                    onBlur={e => e.target.style.borderColor = '#2A2D3D'}
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Submit */}
           <button

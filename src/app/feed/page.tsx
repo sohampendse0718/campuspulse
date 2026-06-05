@@ -42,6 +42,21 @@ export default function FeedPage() {
   const fetchFeed = async () => {
     try {
       setLoading(true)
+      
+      // Get current user to check which posts they have liked
+      const { data: { user } } = await supabase.auth.getUser()
+      let likedIssueIds = new Set<string>()
+      
+      if (user) {
+        const { data: userLikes } = await supabase
+          .from('issue_likes')
+          .select('issue_id')
+          .eq('user_id', user.id)
+        if (userLikes) {
+          likedIssueIds = new Set(userLikes.map(l => l.issue_id))
+        }
+      }
+
       const { data, error } = await supabase
         .from('issues')
         .select(`
@@ -59,7 +74,8 @@ export default function FeedPage() {
         before_image_url: issue.before_image_url,
         after_image_url: issue.after_image_url,
         resolved_at: issue.resolved_at,
-        created_at: issue.created_at, upvotes: issue.upvotes || 0, isLiked: false,
+        created_at: issue.created_at, upvotes: issue.upvotes || 0, 
+        isLiked: likedIssueIds.has(issue.id),
         reported_by_name: issue.reported_by_profile?.full_name || 'Anonymous Student',
         assigned_to_name: issue.assigned_to_profile?.full_name || null,
         assigned_to_role: issue.assigned_to_profile?.role || null,
@@ -80,12 +96,37 @@ export default function FeedPage() {
   }
 
   const handleLike = async (issueId: string) => {
-    const issue = issues.find(i => i.id === issueId)
-    if (!issue) return
-    const newIsLiked = !issue.isLiked
-    const increment = newIsLiked ? 1 : -1
-    setIssues(prev => prev.map(i => i.id === issueId ? { ...i, isLiked: newIsLiked, upvotes: i.upvotes + increment } : i))
-    await supabase.from('issues').update({ upvotes: issue.upvotes + increment }).eq('id', issueId)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return alert('Please log in to upvote!')
+      
+      const issue = issues.find(i => i.id === issueId)
+      if (!issue) return
+      
+      const newIsLiked = !issue.isLiked
+      const increment = newIsLiked ? 1 : -1
+      
+      // Optimistic UI update
+      setIssues(prev => prev.map(i => i.id === issueId ? { ...i, isLiked: newIsLiked, upvotes: Math.max(0, i.upvotes + increment) } : i))
+      
+      if (newIsLiked) {
+        const { error } = await supabase
+          .from('issue_likes')
+          .insert({ issue_id: issueId, user_id: user.id })
+        if (error) throw error
+      } else {
+        const { error } = await supabase
+          .from('issue_likes')
+          .delete()
+          .eq('issue_id', issueId)
+          .eq('user_id', user.id)
+        if (error) throw error
+      }
+    } catch (error: any) {
+      console.error('Error toggling upvote:', error)
+      // Rollback UI update on error
+      fetchFeed()
+    }
   }
 
   const handleAddComment = async (issueId: string) => {

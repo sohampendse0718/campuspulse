@@ -183,13 +183,13 @@ export default function LoginPage() {
             onMouseEnter={e => {
               if (!loading) {
                 (e.currentTarget as HTMLElement).style.background = '#00B8CC'
-                ;(e.currentTarget as HTMLElement).style.boxShadow = '0 0 25px rgba(0,229,255,0.35)'
+                  ; (e.currentTarget as HTMLElement).style.boxShadow = '0 0 25px rgba(0,229,255,0.35)'
               }
             }}
             onMouseLeave={e => {
               if (!loading) {
                 (e.currentTarget as HTMLElement).style.background = '#00E5FF'
-                ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
+                  ; (e.currentTarget as HTMLElement).style.boxShadow = 'none'
               }
             }}
           >

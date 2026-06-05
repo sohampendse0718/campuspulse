@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { TrendingUp, Upload, CheckCircle, Clock, AlertCircle, Loader2, X, BarChart3, Shield } from 'lucide-react'
+import BroadcastTicker from '@/components/BroadcastTicker'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts'
 
 type Issue = {
@@ -231,6 +232,8 @@ export default function DashboardPage() {
             Campus issue management · {totalIssues} total issues tracked
           </p>
         </div>
+
+        <BroadcastTicker />
 
         {/* Stat cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginBottom: 28 }}>

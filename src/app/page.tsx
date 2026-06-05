@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { MapPin, Bell, Users, TrendingUp, ArrowRight, Zap, Shield, BarChart3 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import BroadcastTicker from '@/components/BroadcastTicker'
 
 function AnimatedNumber({ value, duration = 1200 }: { value: number; duration?: number }) {
   const [displayValue, setDisplayValue] = useState(0)
@@ -61,7 +62,7 @@ export default function Home() {
         const { count: totalCount } = await supabase
           .from('issues')
           .select('*', { count: 'exact', head: true })
-          
+
         const { count: resolvedCount } = await supabase
           .from('issues')
           .select('*', { count: 'exact', head: true })
@@ -127,6 +128,10 @@ export default function Home() {
       {/* HERO SECTION */}
       <section style={{ position: 'relative', zIndex: 1, padding: '100px 1.5rem 80px' }}>
         <div style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
+          
+          <div style={{ maxWidth: 760, margin: '0 auto 24px', textAlign: 'left' }}>
+            <BroadcastTicker />
+          </div>
 
           {/* Badge */}
           <div style={{
@@ -416,11 +421,11 @@ export default function Home() {
               }}
                 onMouseEnter={e => {
                   (e.currentTarget as HTMLElement).style.transform = 'translateY(-4px)'
-                  ;(e.currentTarget as HTMLElement).style.boxShadow = `0 8px 30px ${bg}`
+                    ; (e.currentTarget as HTMLElement).style.boxShadow = `0 8px 30px ${bg}`
                 }}
                 onMouseLeave={e => {
                   (e.currentTarget as HTMLElement).style.transform = 'none'
-                  ;(e.currentTarget as HTMLElement).style.boxShadow = 'none'
+                    ; (e.currentTarget as HTMLElement).style.boxShadow = 'none'
                 }}
               >
                 <div style={{
