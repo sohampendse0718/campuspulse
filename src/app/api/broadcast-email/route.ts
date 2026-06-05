@@ -56,7 +56,6 @@ export async function POST(req: Request) {
 
     const mailOptions = {
       from: `"CampusPulse Alerts" <${gmailUser}>`,
-      to: userEmails.join(','), // Send as BCC or To? Better as BCC to protect privacy
       bcc: userEmails.join(','), 
       subject: `${getAlertEmoji(alert_level)} Campus Broadcast: ${title}`,
       text: `CampusPulse Official Notice\n\nCategory: ${category}\nAlert Level: ${alert_level.toUpperCase()}\nPosted by: ${sender_name}\n\n${title}\n\n${message}\n\nPlease check the CampusPulse dashboard for more information.`,
@@ -79,9 +78,6 @@ export async function POST(req: Request) {
         </div>
       `,
     };
-
-    // Remove the 'to' field to prevent everyone seeing everyone else's email
-    delete mailOptions.to;
 
     await transporter.sendMail(mailOptions);
 
