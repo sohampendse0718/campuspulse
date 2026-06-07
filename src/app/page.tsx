@@ -1,10 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import { MapPin, Bell, Users, TrendingUp, ArrowRight, Zap, Shield, BarChart3 } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import BroadcastTicker from '@/components/BroadcastTicker'
+
+const HeroBg3D = dynamic(() => import('@/components/HeroBg3D'), {
+  ssr: false,
+  loading: () => null,
+})
 
 function AnimatedNumber({ value, duration = 1200 }: { value: number; duration?: number }) {
   const [displayValue, setDisplayValue] = useState(0)
@@ -127,8 +133,12 @@ export default function Home() {
 
       {/* HERO SECTION */}
       <section style={{ position: 'relative', zIndex: 1, padding: '100px 1.5rem 80px' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
-          
+
+        {/* 3D network canvas — lives behind all hero content */}
+        <HeroBg3D />
+
+        <div style={{ position: 'relative', zIndex: 1, maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
+
           <div style={{ maxWidth: 760, margin: '0 auto 24px', textAlign: 'left' }}>
             <BroadcastTicker />
           </div>
