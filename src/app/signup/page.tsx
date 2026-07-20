@@ -180,7 +180,7 @@ export default function SignupPage() {
               <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>FULL NAME</label>
               <div style={{ position: 'relative' }}>
                 <User size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
-                <input id="fullName" type="text" required value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Soham Pendse" style={inputStyle}
+                <input id="fullName" type="text" required value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Your Name" style={inputStyle}
                   onFocus={e => e.target.style.borderColor = '#8B5CF6'} onBlur={e => e.target.style.borderColor = '#2A2D3D'} />
               </div>
             </div>
@@ -190,7 +190,7 @@ export default function SignupPage() {
               <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>EMAIL ADDRESS</label>
               <div style={{ position: 'relative' }}>
                 <Mail size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
-                <input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" style={inputStyle}
+                <input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="username@domain.extension" style={inputStyle}
                   onFocus={e => e.target.style.borderColor = '#8B5CF6'} onBlur={e => e.target.style.borderColor = '#2A2D3D'} />
               </div>
             </div>
@@ -239,7 +239,7 @@ export default function SignupPage() {
                   <label style={{ display: 'block', color: '#9CA3AF', fontSize: '0.8rem', fontWeight: 500, marginBottom: 8, letterSpacing: '0.03em' }}>ROLL NUMBER</label>
                   <div style={{ position: 'relative' }}>
                     <Hash size={15} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: '#6B7280' }} />
-                    <input id="rollNo" type="text" required value={rollNo} onChange={e => setRollNo(e.target.value)} placeholder="e.g., 24B-CO-068" style={inputStyle}
+                    <input id="rollNo" type="text" required value={rollNo} onChange={e => setRollNo(e.target.value)} placeholder="e.g., 2XB-DEPT-NUM" style={inputStyle}
                       onFocus={e => e.target.style.borderColor = '#8B5CF6'} onBlur={e => e.target.style.borderColor = '#2A2D3D'} />
                   </div>
                 </div>
