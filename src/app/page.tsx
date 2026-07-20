@@ -437,7 +437,7 @@ export default function Home() {
                   onMouseEnter={e => { const el = e.currentTarget as HTMLElement; el.style.background='#00B8CC'; el.style.boxShadow='0 0 30px rgba(0,229,255,0.4)'; el.style.transform='translateY(-2px)' }}
                   onMouseLeave={e => { const el = e.currentTarget as HTMLElement; el.style.background='#00E5FF'; el.style.boxShadow='none'; el.style.transform='none' }}
                 >
-                  Get Started Free
+                  Get Started
                 </Link>
                 <Link href="/feed" style={{
                   padding: '14px 36px', borderRadius: 10,
